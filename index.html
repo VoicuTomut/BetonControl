@@ -2468,10 +2468,10 @@
                     let multiplier = 1.0;
                     let eventFilter = (e) => true;
                     
-                    if (fabricName === 'Fabric B') {
+                    if (fabricName === 'Statie B') {
                         multiplier = 0.8; // Fabric B has less stock
                         eventFilter = (e, index) => index % 2 === 0; // Fewer events
-                    } else if (fabricName === 'Fabric C') {
+                    } else if (fabricName === 'Statie C') {
                         multiplier = 1.2; // Fabric C has more stock
                         eventFilter = (e, index) => index % 3 !== 0; // Different set of events
                     }
