@@ -1,0 +1,2604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concrete Plant Management</title>
+    <!-- 1. Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 2. Load Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <!-- 3. Load Chart.js for reports -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 4. Load Chart.js Annotation Plugin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
+    
+    <style>
+        /* Custom font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body, html {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f6; /* Lighter gray background */
+            height: 100%;
+        }
+
+        /* Ensure body and html take full height for the app layout */
+        body {
+             height: 100vh;
+             overflow: hidden; /* Prevent scrolling on the body */
+        }
+        
+        /* Style for the chart toggle buttons */
+        .chart-toggle-btn {
+             @apply border border-gray-300 bg-gray-50 text-gray-700 font-medium py-1 px-3 rounded-md text-xs transition;
+        }
+        
+        /* Keep tab content base styles */
+        .tab-content {
+            display: none;
+        }
+
+        /* Fabric selector card transition */
+        .fabric-card {
+            @apply bg-white rounded-2xl shadow-lg cursor-pointer transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1;
+        }
+    </style>
+</head>
+<body class="h-screen overflow-hidden">
+
+    <!-- 
+      ============================================
+      Fabric Selector Screen
+      This is the new initial screen.
+      ============================================
+    -->
+    <div id="fabric-selector" class="flex flex-col items-center justify-center min-h-full h-full bg-gray-100 p-4">
+        <div class="w-full max-w-md mx-auto">
+            <div class="flex items-center justify-center mb-6">
+                <i data-lucide="hard-hat" class="h-10 w-10 text-blue-600"></i>
+                <span class="text-3xl font-bold ml-3 text-gray-800">Beton Control</span>
+            </div>
+            
+            <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-gray-200">
+                <h1 class="text-2xl font-bold text-center text-gray-800 mb-2">Select a Fabric</h1>
+                <p class="text-center text-gray-500 mb-8">Choose which plant you want to monitor.</p>
+                
+                <div class="space-y-4">
+                    <!-- Fabric A -->
+                    <button class="fabric-card w-full p-5 flex items-center space-x-5" onclick="App.handlers.selectFabric('Fabric A')">
+                        <div class="flex-shrink-0 bg-blue-100 text-blue-600 rounded-full h-12 w-12 flex items-center justify-center">
+                            <i data-lucide="factory" class="h-6 w-6"></i>
+                        </div>
+                        <div class="text-left">
+                            <h2 class="text-lg font-semibold text-gray-800">Fabric A</h2>
+                            <p class="text-sm text-gray-500">Main production plant</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="h-5 w-5 text-gray-400 ml-auto"></i>
+                    </button>
+                    
+                    <!-- Fabric B -->
+                    <button class="fabric-card w-full p-5 flex items-center space-x-5" onclick="App.handlers.selectFabric('Fabric B')">
+                        <div class="flex-shrink-0 bg-green-100 text-green-600 rounded-full h-12 w-12 flex items-center justify-center">
+                            <i data-lucide="factory" class="h-6 w-6"></i>
+                        </div>
+                        <div class="text-left">
+                            <h2 class="text-lg font-semibold text-gray-800">Fabric B</h2>
+                            <p class="text-sm text-gray-500">Secondary location</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="h-5 w-5 text-gray-400 ml-auto"></i>
+                    </button>
+                    
+                    <!-- Fabric C -->
+                    <button class="fabric-card w-full p-5 flex items-center space-x-5" onclick="App.handlers.selectFabric('Fabric C')">
+                        <div class="flex-shrink-0 bg-yellow-100 text-yellow-600 rounded-full h-12 w-12 flex items-center justify-center">
+                            <i data-lucide="factory" class="h-6 w-6"></i>
+                        </div>
+                        <div class="text-left">
+                            <h2 class="text-lg font-semibold text-gray-800">Fabric C</h2>
+                            <p class="text-sm text-gray-500">Aggregates plant</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="h-5 w-5 text-gray-400 ml-auto"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <p class="text-center text-gray-400 text-xs mt-6">
+                &copy; 2025 Beton Control. All rights reserved.
+            </p>
+        </div>
+    </div>
+
+    <!-- 
+      ============================================
+      Main Application Container
+      This is the entire application from u4.html,
+      initially hidden.
+      ============================================
+    -->
+    <div id="app-container" class="hidden h-full md:flex">
+
+        <!-- Mobile overlay -->
+        <div class="mobile-overlay hidden fixed inset-0 z-40 bg-black/50 md:hidden" onclick="App.handlers.toggleMobileMenu()"></div>
+
+        <!-- Sidebar Navigation -->
+        <nav class="mobile-sidebar w-64 md:w-64 bg-gray-800 text-white flex flex-col h-full fixed top-0 left-0 bottom-0 z-50 -translate-x-full transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:flex-shrink-0">
+            <!-- Logo -->
+            <div class="flex items-center justify-between h-20 shadow-md px-4 md:justify-center">
+                <div class="flex items-center">
+                    <i data-lucide="hard-hat" class="h-8 w-8 text-blue-400"></i>
+                    <span class="text-xl font-bold ml-3">Beton Control</span>
+                </div>
+                <!-- Mobile Close Button -->
+                <button class="md:hidden text-gray-400 hover:text-white" onclick="App.handlers.toggleMobileMenu()">
+                    <i data-lucide="x" class="h-6 w-6"></i>
+                </button>
+            </div>
+            
+            <!-- Menu -->
+            <div class="flex-1 overflow-y-auto p-4">
+                <a href="#" class="nav-link flex items-center px-5 py-3 my-1 rounded-xl font-medium transition-all bg-blue-600 text-white font-semibold" data-page="dashboard">
+                    <i data-lucide="layout-dashboard" class="mr-3"></i> Dashboard
+                </a>
+                <a href="#" class="nav-link flex items-center px-5 py-3 my-1 rounded-xl font-medium transition-all text-gray-300 hover:bg-gray-700 hover:text-white" data-page="inventory">
+                    <i data-lucide="database" class="mr-3"></i> Inventory
+                </a>
+                <a href="#" class="nav-link flex items-center px-5 py-3 my-1 rounded-xl font-medium transition-all text-gray-300 hover:bg-gray-700 hover:text-white" data-page="reports">
+                    <i data-lucide="file-bar-chart-2" class="mr-3"></i> Reports
+                </a>
+            </div>
+            
+            <!-- User Toggle -->
+            <div class="p-4 border-t border-gray-700">
+                <div class="text-sm text-gray-400 mb-2">Toggle View:</div>
+                <button id="toggle-user-btn" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center transition">
+                    <i data-lucide="user-cog" class="h-5 w-5 mr-2"></i>
+                    <span id="user-role-label">Switch to Operator</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col overflow-hidden h-full">
+            <!-- Top Header -->
+            <header class="h-20 bg-white border-b border-gray-200 flex items-center justify-between p-4 sm:p-8 flex-shrink-0">
+                <!-- MODIFIED: Header left side to include Fabric Switcher -->
+                <div class="flex items-center flex-1 min-w-0">
+                    <!-- Mobile Menu Button -->
+                    <button class="md:hidden mr-3 text-gray-600 hover:text-gray-900" onclick="App.handlers.toggleMobileMenu()">
+                        <i data-lucide="menu" class="h-6 w-6"></i>
+                    </button>
+                    
+                    <!-- NEW: Fabric Info & Switcher -->
+                    <div class="flex-1 min-w-0">
+                        <button id="fabric-switcher" class="flex items-center text-left group rounded-md -ml-1 p-1 transition hover:bg-gray-100">
+                            <span id="fabric-name-display" class="text-sm font-semibold text-blue-600 truncate">
+                                <!-- Fabric Name Injected Here -->
+                            </span>
+                            <i data-lucide="chevrons-up-down" class="h-4 w-4 text-gray-400 ml-1.5 group-hover:text-blue-600 flex-shrink-0"></i>
+                        </button>
+                        <h1 id="page-title" class="text-2xl sm:text-3xl font-bold text-gray-800 truncate">Dashboard</h1>
+                    </div>
+                </div>
+
+                <!-- Header right side (unchanged) -->
+                <div class="flex items-center space-x-2 sm:space-x-4 flex-shrink-0 pl-2">
+                    <span class="text-xs sm:text-sm font-medium text-gray-500">
+                        <span id="current-time">9:05 PM</span> | 
+                        <span id="current-role" class="hidden sm:inline-block">Administrator View</span>
+                    </span>
+                    <i data-lucide="bell" class="h-6 w-6 text-gray-400"></i>
+                    <img src="https://placehold.co/40x40/2563eb/white?text=A" alt="user avatar" class="rounded-full h-10 w-10">
+                </div>
+            </header>
+
+            <!-- Page Content (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-4 sm:p-8">
+                
+                <!-- == Dashboard Page == -->
+                <div id="page-dashboard" class="page-content animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div class="flex justify-end mb-4 relative">
+                        <button id="view-options-btn" class="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 bg-white px-4 py-2 rounded-lg shadow border">
+                            <i data-lucide="eye" class="h-4 w-4 mr-2"></i>
+                            View Options
+                        </button>
+                        <div id="view-options-dropdown" class="hidden absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-30 border">
+                            <ul class="py-1">
+                                <li class="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
+                                    <label for="toggle-silos" class="text-sm text-gray-700">Silozuri</label>
+                                    <input type="checkbox" id="toggle-silos" class="dashboard-toggle rounded text-blue-600" data-category="silos" checked>
+                                </li>
+                                <li class="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
+                                    <label for="toggle-bunkers" class="text-sm text-gray-700">Padocuri</label>
+                                    <input type="checkbox" id="toggle-bunkers" class="dashboard-toggle rounded text-blue-600" data-category="bunkers" checked>
+                                </li>
+                                <li class="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
+                                    <label for="toggle-water" class="text-sm text-gray-700">Rezerve Apă</label>
+                                    <input type="checkbox" id="toggle-water" class="dashboard-toggle rounded text-blue-600" data-category="water" checked>
+                                </li>
+                                <li class="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
+                                    <label for="toggle-fuel" class="text-sm text-gray-700">Combustibil</label>
+                                    <input type="checkbox" id="toggle-fuel" class="dashboard-toggle rounded text-blue-600" data-category="fuel" checked>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div id="silos-section">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Silozuri</h2>
+                        <div id="silos-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <!-- Silo Cards will be injected here by JS -->
+                        </div>
+                    </div>
+
+                    <div id="bunkers-section" class="mt-8">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Padocuri</h2>
+                        <div id="bunkers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <!-- Bunker Cards will be injected here by JS -->
+                        </div>
+                    </div>
+
+                    <div id="water-section" class="mt-8">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Rezerve Apă</h2>
+                        <div id="water-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <!-- Water Cards will be injected here by JS -->
+                        </div>
+                    </div>
+                    
+                    <div id="fuel-section" class="mt-8">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Combustibil</h2>
+                        <div id="fuel-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <!-- Fuel Cards will be injected here by JS -->
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+                        <div class="lg:col-span-1 space-y-6">
+                            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                                <h3 class="text-xl font-semibold text-gray-800 flex items-center">
+                                    <i data-lucide="alert-triangle" class="text-red-500 mr-3"></i>
+                                    Pending Alarms
+                                </h3>
+                                <div id="alarm-list" class="mt-4 space-y-3 max-h-64 overflow-y-auto">
+                                    <!-- Alarms injected by JS -->
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                                <h3 class="text-xl font-semibold text-gray-800 flex items-center">
+                                    <i data-lucide="calendar-clock" class="text-blue-500 mr-3"></i>
+                                    Event Timeline
+                                </h3>
+                                <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-4">
+                                    <div>
+                                        <label for="timeline-start-date" class="block text-xs font-medium text-gray-500">From</label>
+                                        <input type="date" id="timeline-start-date" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                                    </div>
+                                    <div>
+                                        <label for="timeline-end-date" class="block text-xs font-medium text-gray-500">To</label>
+                                        <input type="date" id="timeline-end-date" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                                    </div>
+                                </div>
+                                <div id="timeline-list" class="mt-4 space-y-3 max-h-96 overflow-y-auto">
+                                    <!-- Timeline events injected by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                                <h3 class="text-xl font-semibold text-gray-800">Resource Usage vs. Projection</h3>
+                                <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-4">
+                                    <div>
+                                        <label for="resource-start-date" class="block text-xs font-medium text-gray-500">From</label>
+                                        <input type="date" id="resource-start-date" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                                    </div>
+                                    <div>
+                                        <label for="resource-end-date" class="block text-xs font-medium text-gray-500">To</label>
+                                        <input type="date" id="resource-end-date" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                                    </div>
+                                </div>
+                                <div class="h-56 mt-4">
+                                    <canvas id="resource-chart"></canvas>
+                                </div>
+                            </div>
+                            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                                <h3 class="text-xl font-semibold text-gray-800">Concrete Produced</h3>
+                                <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-4">
+                                    <div>
+                                        <label for="production-start-date" class="block text-xs font-medium text-gray-500">From</label>
+                                        <input type="date" id="production-start-date" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                                    </div>
+                                    <div>
+                                        <label for="production-end-date" class="block text-xs font-medium text-gray-500">To</label>
+                                        <input type="date" id="production-end-date" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                                    </div>
+                                </div>
+                                <div class="h-56 mt-4">
+                                    <canvas id="production-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- == Inventory Page == -->
+                <div id="page-inventory" class="page-content hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-semibold text-gray-800">Inventory Management</h2>
+                    </div>
+                    
+                    <div class="border-b border-gray-200 mb-6 w-full overflow-x-auto">
+                        <nav class="flex -mb-px space-x-6">
+                            <button class="tab-btn py-2 px-4 font-semibold transition whitespace-nowrap text-blue-600 border-blue-600 border-b-2" data-tab="inventory-silos">Silozuri & Padocuri</button>
+                            <button class="tab-btn py-2 px-4 font-semibold transition whitespace-nowrap text-gray-600 border-transparent border-b-2 hover:border-gray-300 hover:text-gray-800" data-tab="inventory-additives">Additives</button>
+                            <button class="tab-btn py-2 px-4 font-semibold transition whitespace-nowrap text-gray-600 border-transparent border-b-2 hover:border-gray-300 hover:text-gray-800" data-tab="inventory-water-fuel">Apă & Combustibil</button>
+                        </nav>
+                    </div>
+                    
+                    <!-- TAB 1: Silos & Bunkers -->
+                    <div id="inventory-silos" class="tab-content block">
+                        <div class="flex justify-end mb-4">
+                            <button id="inventory-add-storage-btn" class="admin-only py-2 px-4 rounded-lg font-semibold text-sm transition shadow bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md flex items-center">
+                                <i data-lucide="plus" class="h-5 w-5 mr-2"></i>
+                                <span>Add Storage Unit</span>
+                            </button>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-lg overflow-hidden overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Unit Name</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Type</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Material</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Current Mass (T)</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Capacity (T)</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Volume (m³)</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap admin-only">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventory-table-body" class="bg-white divide-y divide-gray-200">
+                                    <!-- Inventory rows injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- TAB 2: Additives -->
+                    <div id="inventory-additives" class="tab-content">
+                        <div class="flex justify-end mb-4">
+                            <button id="inventory-add-additive-btn" class="admin-only py-2 px-4 rounded-lg font-semibold text-sm transition shadow bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md flex items-center">
+                                <i data-lucide="plus" class="h-5 w-5 mr-2"></i>
+                                <span>Add Additive Type</span>
+                            </button>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-lg overflow-hidden overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Additive Name</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Reference Code</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Total Barrels</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Est. Volume (Liters)</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap admin-only">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="additives-table-body" class="bg-white divide-y divide-gray-200">
+                                    <!-- Additive rows injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: Water & Fuel -->
+                    <div id="inventory-water-fuel" class="tab-content">
+                        <div class="flex justify-end mb-4 space-x-3">
+                            <button id="inventory-add-water-btn" class="admin-only py-2 px-4 rounded-lg font-semibold text-sm transition shadow bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md flex items-center">
+                                <i data-lucide="plus" class="h-5 w-5 mr-2"></i>
+                                <span>Add Water Tank</span>
+                            </button>
+                            <button id="inventory-add-fuel-btn" class="admin-only py-2 px-4 rounded-lg font-semibold text-sm transition shadow bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md flex items-center">
+                                <i data-lucide="plus" class="h-5 w-5 mr-2"></i>
+                                <span>Add Fuel Tank</span>
+                            </button>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Rezerve Apă</h3>
+                        <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8 overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Rezervor</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Sursă / Tip</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Volum Curent (m³)</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Capacitate (m³)</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap admin-only">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="water-table-body" class="bg-white divide-y divide-gray-200">
+                                    <!-- Water rows injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Rezervă Combustibil</h3>
+                        <div class="bg-white rounded-2xl shadow-lg overflow-hidden overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Rezervor</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Tip Combustibil</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Volum Curent (L)</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Capacitate (L)</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                                        <th class="table-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap admin-only">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fuel-table-body" class="bg-white divide-y divide-gray-200">
+                                    <!-- Fuel rows injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- == Reports Page == -->
+                <div id="page-reports" class="page-content hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Generate Reports</h2>
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                            <div class="w-full sm:w-auto">
+                                <label for="report-start-date" class="block text-sm font-medium text-gray-700">Start Date</label>
+                                <input type="date" id="report-start-date" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div class="w-full sm:w-auto">
+                                <label for="report-end-date" class="block text-sm font-medium text-gray-700">End Date</label>
+                                <input type="date" id="report-end-date" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <button id="generate-report-btn" class="self-start sm:self-end py-2 px-5 rounded-lg font-semibold text-sm transition shadow bg-green-600 text-white hover:bg-green-700 hover:shadow-md flex items-center">
+                                <i data-lucide="download" class="h-5 w-5 mr-2"></i>
+                                Generate Report
+                            </button>
+                        </div>
+                        
+                        <div id="report-output" class="mt-8 hidden">
+                            <h3 id="report-title" class="text-xl font-semibold text-gray-800">Report for...</h3>
+                            <div class="mt-4 border border-gray-200 rounded-lg p-4 divide-y divide-gray-200">
+                                <div class="py-2">
+                                    <h4 class="font-semibold">Material Summary</h4>
+                                    <p>Cement: Received 40.0 T, Used 22.1 T. Net: +17.9 T</p>
+                                    <p>Sand: Received 50.0 T, Used 18.5 T. Net: +31.5 T</p>
+                                    <p>Gravel: Received 0.0 T, Used 25.0 T. Net: -25.0 T</p>
+                                    <p>Fly Ash: Received 0.0 T, Used 5.5 T. Net: -5.5 T</p>
+                                </div>
+                                
+                                <div class="py-2">
+                                    <h4 class="font-semibold mt-4">Alarms Triggered</h4>
+                                    <p>Total Alarms: 4</p>
+                                    <p>Acknowledged: 2 (by jsmith, admin)</p>
+                                    <p>Unacknowledged: 2</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </main>
+
+        <!-- 
+          ============================================
+          All Modals from u4.html
+          (No changes needed to the modal HTML)
+          ============================================
+        -->
+        <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+
+        <!-- Add/Edit Unit Modal -->
+        <div id="edit-unit-modal" class="modal hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-11/12 max-w-md">
+            <h3 id="edit-unit-title" class="text-xl font-semibold text-gray-800 mb-6">Edit Storage Unit</h3>
+            <form id="edit-unit-form">
+                <input type="hidden" id="edit-unit-id">
+                <input type="hidden" id="edit-unit-original-capacity">
+                <div class="space-y-4">
+                    <div>
+                        <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="edit-unit-name">Unit Name</label>
+                        <input type="text" id="edit-unit-name" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" placeholder="e.g., Silo 3">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="edit-unit-type">Unit Type</label>
+                            <select id="edit-unit-type" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                                <option>Silo</option>
+                                <option>Bunker</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="edit-unit-capacity">Capacity (kg)</label>
+                            <input type="number" id="edit-unit-capacity" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" placeholder="50000">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="edit-unit-material">Material</label>
+                        <select id="edit-unit-material" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-8">
+                    <button type="button" class="btn-secondary py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-white text-gray-700 border border-gray-300 hover:bg-gray-50" id="edit-unit-cancel">Cancel</button>
+                    <button type="submit" class="btn-primary py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md">Save Changes</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Event Action Modal -->
+        <div id="event-action-modal" class="modal hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-11/12 max-w-md" style="z-index: 60;">
+            <h3 id="event-action-title" class="text-xl font-semibold text-gray-800 mb-6">Acknowledge Event</h3>
+            <p id="event-action-message" class="text-gray-600 mb-4"></p>
+            <form id="event-action-form">
+                <div class="space-y-4">
+                    <div>
+                        <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="event-action-notes">Notes</label>
+                        <textarea id="event-action-notes" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" rows="3" placeholder="e.g., 'Minor spill during loading, cleaned up.'"></textarea>
+                        <p id="event-action-error" class="text-red-600 text-sm mt-2 hidden"></p>
+                    </div>
+                    
+                    <div class="border-t border-gray-200 pt-4">
+                        <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="event-link-select">Link to Existing Event (Optional)</label>
+                        <select id="event-link-select" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                            <option value="">-- No Link (Custom Note) --</option>
+                            <!-- Pending events injected by JS -->
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-8">
+                    <button type="button" class="btn-secondary py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-white text-gray-700 border border-gray-300 hover:bg-gray-50" id="event-action-cancel">Cancel</button>
+                    <button type="submit" class="btn-primary py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md" id="event-action-submit-btn">Acknowledge</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Unit Details Modal -->
+        <div id="unit-details-modal" class="modal hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-11/12 max-w-md md:max-w-3xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="unit-modal-title" class="text-2xl font-semibold text-gray-800">Unit Details</h3>
+                <button id="unit-details-close" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x" class="h-6 w-6"></i>
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 bg-gray-50 p-4 rounded-lg">
+                <div>
+                    <span class="block text-xs font-medium text-gray-500">Material</span>
+                    <span id="unit-modal-material" class="font-semibold text-gray-800"></span>
+                </div>
+                <div>
+                    <span class="block text-xs font-medium text-gray-500">Current Mass</span>
+                    <span id="unit-modal-mass" class="font-semibold text-gray-800"></span>
+                </div>
+                <div>
+                    <span class="block text-xs font-medium text-gray-500">Current Volume</span>
+                    <span id="unit-modal-volume" class="font-semibold text-gray-800"></span>
+                </div>
+                <div>
+                    <span class="block text-xs font-medium text-gray-500">Capacity</span>
+                    <span id="unit-modal-capacity" class="font-semibold text-gray-800"></span>
+                </div>
+            </div>
+
+            <div>
+                <div class="flex flex-col md:flex-row justify-between md:items-center mb-3">
+                    <h4 id="unit-modal-chart-title" class="text-lg font-semibold text-gray-700 mb-2 md:mb-0">Live Sensor Data (Last 3 Hours)</h4>
+                    <div id="unit-modal-intervals" class="flex flex-wrap gap-2">
+                        <!-- Interval buttons injected by JS -->
+                    </div>
+                </div>
+                <div id="unit-modal-toggles" class="flex flex-wrap gap-2 mb-2">
+                    <!-- Toggles injected by JS -->
+                </div>
+                <div class="h-80 w-full">
+                    <canvas id="unit-details-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="mt-8">
+                <h4 class="text-lg font-semibold text-gray-700 mb-3">Recent Events & Actions</h4>
+                <div id="unit-modal-actions" class="space-y-3 max-h-48 overflow-y-auto pr-2">
+                    <!-- Actions list injected by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Camera Modal -->
+        <div id="camera-modal" class="modal hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-11/12 max-w-md md:max-w-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="camera-modal-title" class="text-xl font-semibold text-gray-800">Live Camera Feed</h3>
+                <button id="camera-modal-close" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x" class="h-6 w-6"></i>
+                </button>
+            </div>
+            <div class="bg-gray-900 rounded-lg overflow-hidden">
+                <img src="https://placehold.co/600x400/000000/FFFFFF?text=Simulated+Camera+Feed" alt="Simulated Camera Feed" class="w-full h-auto">
+            </div>
+            <div class="mt-4">
+                <p class="font-semibold" id="camera-modal-event-msg">Event: Unlinked Mass Drop</p>
+                <p class="text-sm text-gray-500" id="camera-modal-event-time">Time: 8:10 PM</p>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirm-remove-modal" class="modal hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-11/12 max-w-xs" style="z-index: 70;">
+            <h3 id="confirm-remove-title" class="text-xl font-semibold text-gray-800 mb-4">Confirm Action</h3>
+            <p id="confirm-remove-message" class="text-gray-600 mb-6">Are you sure?</p>
+            <div class="flex justify-end space-x-3">
+                <button type="button" class="btn-secondary py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-white text-gray-700 border border-gray-300 hover:bg-gray-50" id="confirm-remove-cancel">Cancel</button>
+                <button type="button" class="btn py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-red-600 hover:bg-red-700 text-white" id="confirm-remove-btn">Confirm</button>
+            </div>
+        </div>
+
+        <!-- Edit Stock Modal -->
+        <div id="stock-edit-modal" class="modal hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-11/12 max-w-md" style="z-index: 60;">
+            <h3 id="stock-edit-title" class="text-xl font-semibold text-gray-800 mb-4">Edit Stock</h3>
+            <p class="text-gray-600 mb-2">Item: <span id="stock-edit-name" class="font-medium"></span></p>
+            <p class="text-gray-600 mb-6">Current: <span id="stock-edit-current" class="font-medium"></span></p>
+            
+            <form id="stock-edit-form">
+                <div>
+                    <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="stock-edit-amount">Amount</label>
+                    <input type="number" id="stock-edit-amount" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" placeholder="e.g., 5000" required>
+                    <p class="text-sm text-gray-500 mt-1">Enter a positive amount to add or subtract.</p>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-8">
+                    <button type="button" class="btn-secondary py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-white text-gray-700 border border-gray-300 hover:bg-gray-50" id="stock-edit-cancel">Cancel</button>
+                    <button type="button" class="btn py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-red-600 hover:bg-red-700 text-white" id="stock-edit-subtract">Subtract</button>
+                    <button type="button" class="btn py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-green-600 hover:bg-green-700 text-white" id="stock-edit-add">Add</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Add/Edit Additive Modal -->
+        <div id="edit-additive-modal" class="modal hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-11/12 max-w-md">
+            <h3 id="edit-additive-title" class="text-xl font-semibold text-gray-800 mb-6">Edit Additive</h3>
+            <form id="edit-additive-form">
+                <input type="hidden" id="edit-additive-id">
+                <div class="space-y-4">
+                    <div>
+                        <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="edit-additive-name">Additive Name</label>
+                        <input type="text" id="edit-additive-name" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" placeholder="e.g., Superplastifiant XYZ">
+                    </div>
+                    <div>
+                        <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="edit-additive-refcode">Reference Code</label>
+                        <input type="text" id="edit-additive-refcode" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" placeholder="e.g., AD-XYZ">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-8">
+                    <button type="button" class="btn-secondary py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-white text-gray-700 border border-gray-300 hover:bg-gray-50" id="edit-additive-cancel">Cancel</button>
+                    <button type="submit" class="btn-primary py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md">Save Changes</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Add/Edit Water/Fuel Modal -->
+        <div id="edit-water-fuel-modal" class="modal hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-11/12 max-w-md">
+            <h3 id="edit-water-fuel-title" class="text-xl font-semibold text-gray-800 mb-6">Edit Tank</h3>
+            <form id="edit-water-fuel-form">
+                <input type="hidden" id="edit-water-fuel-id">
+                <input type="hidden" id="edit-water-fuel-type"> <!-- 'water' or 'fuel' -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="edit-water-fuel-name">Tank Name</label>
+                        <input type="text" id="edit-water-fuel-name" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" placeholder="e.g., Rezervor Principal">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="edit-water-fuel-material">Type / Sursă</label>
+                            <input type="text" id="edit-water-fuel-material" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" placeholder="e.g., Apă Foraj or Motorină">
+                        </div>
+                        <div>
+                            <label class="form-label block mb-2 text-sm font-medium text-gray-700" for="edit-water-fuel-capacity">Capacity</label>
+                            <input type="number" id="edit-water-fuel-capacity" class="form-input block w-full rounded-lg border border-gray-300 p-2.5 text-sm shadow-sm transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" placeholder="50">
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-500 -mt-2">Capacity unit is <span id="edit-water-fuel-unit"></span></p>
+                </div>
+                <div class="flex justify-end space-x-3 mt-8">
+                    <button type="button" class="btn-secondary py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-white text-gray-700 border border-gray-300 hover:bg-gray-50" id="edit-water-fuel-cancel">Cancel</button>
+                    <button type="submit" class="btn-primary py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md">Save Changes</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Bottom Navigation (Mobile Only) -->
+        <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-gray-800 text-white flex justify-around shadow-lg z-20 border-t border-gray-700">
+            <a href="#" class="bottom-nav-link flex-1 flex flex-col items-center justify-center p-3 transition-all text-blue-500 bg-gray-700" data-page="dashboard">
+                <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
+                <span class="text-xs mt-1">Dashboard</span>
+            </a>
+            <a href="#" class="bottom-nav-link flex-1 flex flex-col items-center justify-center p-3 transition-all text-gray-400 hover:text-white hover:bg-gray-700" data-page="inventory">
+                <i data-lucide="database" class="h-5 w-5"></i>
+                <span class="text-xs mt-1">Inventory</span>
+            </a>
+            <a href="#" class="bottom-nav-link flex-1 flex flex-col items-center justify-center p-3 transition-all text-gray-400 hover:text-white hover:bg-gray-700" data-page="reports">
+                <i data-lucide="file-bar-chart-2" class="h-5 w-5"></i>
+                <span class="text-xs mt-1">Reports</span>
+            </a>
+        </nav>
+    </div> <!-- End of #app-container -->
+
+
+    <!-- 
+      ============================================
+      JAVASCRIPT
+      Includes new logic for fabric selection
+      and all original logic from u4.html
+      ============================================
+    -->
+    <script>
+        // --- Safe Query & Event Listeners (Condensed) ---
+        const $ = (selector, context = document) => context.querySelector(selector);
+        const $$ = (selector, context = document) => context.querySelectorAll(selector);
+        
+        const safeOn = (selector, event, handler) => {
+            const el = $(selector);
+            if (el) {
+                el.addEventListener(event, handler);
+            } else {
+                console.warn(`Element not found for event: ${selector}`);
+            }
+        };
+
+
+        // --- GLOBAL APP OBJECT ---
+        const App = {
+            // --- 1. APPLICATION STATE ---
+            state: {
+                selectedFabric: null, // NEW: Track the chosen fabric
+                currentUserRole: 'administrator', // 'administrator' or 'operator'
+                
+                // Base data is stored and will be cloned
+                baseData: {
+                    storageUnits: [
+                        { id: 1, name: "Siloz 1", type: "Silo", material: "CEM I 42,5 R", mass: 65000, capacity: 80000, volume: 43.3, maxVolume: 53.3, status: "ok" },
+                        { id: 2, name: "Siloz 2", type: "Silo", material: "CEM II/A-LL 42,5 R", mass: 72000, capacity: 80000, volume: 48.0, maxVolume: 53.3, status: "ok" },
+                        { id: 3, name: "Siloz 3", type: "Silo", material: "CEM II/A-LL 52,5 R", mass: 15000, capacity: 80000, volume: 10.0, maxVolume: 53.3, status: "low" },
+                        { id: 4, name: "Padoc 1", type: "Bunker", material: "Nisip 0-4 mm", mass: 450000, capacity: 560000, volume: 281.0, maxVolume: 350, status: "ok" },
+                        { id: 5, name: "Padoc 2", type: "Bunker", material: "Pietriș 4-8 mm", mass: 300000, capacity: 560000, volume: 187.5, maxVolume: 350, status: "ok" },
+                        { id: 6, name: "Padoc 3", type: "Bunker", material: "Pietriș 8-16 mm", mass: 550000, capacity: 560000, volume: 343.8, maxVolume: 350, status: "ok" },
+                        { id: 7, name: "Padoc 4", type: "Bunker", material: "Pietriș 16-31.5 mm", mass: 100000, capacity: 560000, volume: 62.5, maxVolume: 350, status: "low" }
+                    ],
+                    waterTanks: [
+                        { id: 'w1', name: 'Rezervor Tampon', type: 'Apă Foraj', volume: 4.5, capacity: 5, status: 'ok' },
+                        { id: 'w2', name: 'Rezervor Înmagazinare', type: 'Apă Foraj', volume: 38, capacity: 50, status: 'ok' },
+                        { id: 'w3', name: 'Bazin Retenție', type: 'Apă Reutilizată', volume: 25, capacity: 60, status: 'ok' }
+                    ],
+                    fuelTanks: [
+                        { id: 'f1', name: 'Rezervor Motorină', type: 'Motorină', volume: 7500, capacity: 9000, status: 'ok' }
+                    ],
+                    additives: [
+                        { id: 1, name: "Aditiv A1 (Superplastifiant)", refCode: "AD-A1", barrels: 5, estVolumeL: 1000 },
+                        { id: 2, name: "Aditiv A3 (Întârzietor)", refCode: "AD-A3", barrels: 3, estVolumeL: 600 }
+                    ],
+                    recipes: [
+                        {
+                            id: 1, name: "B250 / C16/20", description: "Beton de uz general (fundații, stâlpi). Clasa: C16/20.", estTime: 30,
+                            steps: [
+                                { material: "CEM II/A-LL 42,5 R", qty: 320, unit: "kg" },
+                                { material: "Nisip 0-4 mm", qty: 750, unit: "kg" },
+                                { material: "Pietriș 8-16 mm", qty: 1100, unit: "kg" },
+                                { material: "Apă Foraj", qty: 160, unit: "L" },
+                                { material: "Mix", qty: 180, unit: "sec" }
+                            ]
+                        },
+                        {
+                            id: 2, name: "B400 / C30/37", description: "Beton de înaltă rezistență (grinzi, planșee). Clasa: C30/37.", estTime: 45,
+                            steps: [
+                                { material: "CEM I 42,5 R", qty: 400, unit: "kg" },
+                                { material: "Nisip 0-4 mm", qty: 650, unit: "kg" },
+                                { material: "Pietriș 4-8 mm", qty: 400, unit: "kg" },
+                                { material: "Pietriș 8-16 mm", qty: 800, unit: "kg" },
+                                { material: "Apă Foraj", qty: 150, unit: "L" },
+                                { material: "Aditiv A1 (Superplastifiant)", qty: 8, unit: "L" },
+                                { material: "Mix", qty: 240, unit: "sec" }
+                            ]
+                        }
+                    ],
+                    events: [
+                        { id: 1, unitId: 4, type: 'alarm', message: "Padoc 1: Unlinked Mass Drop (-50kg)", time: "08:10 PM", status: 'pending', user: null, date: "2025-11-12", timestamp: new Date('2025-11-12T20:10:00') },
+                        { id: 2, unitId: 3, type: 'alarm', message: "Siloz 3: Sensor Offline", time: "07:45 PM", status: 'problem', user: 'admin', notes: 'Sensor needs replacement.', date: "2025-11-12", timestamp: new Date('2025-11-12T19:45:00') },
+                        { id: 3, unitId: 2, type: 'alarm', message: "Siloz 2: Mass Discrepancy (Order #301)", time: "06:20 PM", status: 'acknowledged', user: 'jsmith', notes: 'Minor overfill, OK.', date: "2025-11-12", timestamp: new Date('2025-11-12T18:20:00') },
+                        { id: 5, unitId: 7, type: 'alarm', message: "Padoc 4: Projected usage exceeds inventory!", time: "09:00 AM", status: 'pending', user: null, date: "2025-11-12", timestamp: new Date('2025-11-12T09:00:00') },
+                        { id: 10, unitId: 2, type: 'order', message: "Production Order #301 (B250)", time: "06:15 PM", estStartTime: "2025-11-12T18:15:00", estEndTime: "2025-11-12T18:45:00", status: 'acknowledged', user: 'jsmith', notes: 'Completed.', recipeId: 1, quantity: 5, date: "2025-11-12", timestamp: new Date('2025-11-12T18:15:00') },
+                        { id: 11, unitId: 4, type: 'order', message: "Production Order #302 (B400)", time: "07:55 PM", estStartTime: "2025-11-12T19:55:00", estEndTime: "2025-11-12T20:40:00", status: 'pending', user: null, recipeId: 2, quantity: 8, date: "2025-11-12", timestamp: new Date('2025-11-12T19:55:00') },
+                        { id: 12, unitId: 1, type: 'delivery', message: "Delivery Order #112 (CEM I 42,5 R)", time: "06:30 PM", estStartTime: "2025-11-12T18:30:00", estEndTime: "2025-11-12T19:00:00", status: 'acknowledged', user: 'admin', notes: 'Received 19.8T.', expectedMass: 20000, actualMass: 19800, date: "2025-11-12", timestamp: new Date('2025-11-12T18:30:00') },
+                        { id: 13, unitId: 4, type: 'delivery', message: "Delivery Order #113 (Nisip 0-4 mm)", time: "09:30 PM", estStartTime: "2025-11-12T21:30:00", estEndTime: "2025-11-12T22:00:00", status: 'pending', user: null, expectedMass: 25000, date: "2025-11-12", timestamp: new Date('2025-11-12T21:30:00') },
+                        { id: 20, unitId: 5, type: 'maintenance', message: "Scheduled Cleaning (Padoc 2)", time: "04:00 PM", estStartTime: "2025-11-12T16:00:00", estEndTime: "2025-11-12T17:00:00", status: 'acknowledged', user: 'admin', notes: 'Completed by crew.', date: "2025-11-12", timestamp: new Date('2025-11-12T16:00:00') },
+                        { id: 21, unitId: 1, type: 'maintenance', message: "Sensor Calibration (Siloz 1)", time: "10:00 AM", estStartTime: "2025-11-12T10:00:00", estEndTime: "2025-11-12T11:00:00", status: 'pending', user: null, date: "2025-11-12", timestamp: new Date('2025-11-12T10:00:00') },
+                        { id: 22, unitId: 4, type: 'delivery', message: "Delivery Order #114 (Nisip 0-4 mm)", time: "09:00 AM", estStartTime: "2025-11-12T09:00:00", estEndTime: "2025-11-12T09:30:00", status: 'acknowledged', user: 'jsmith', notes: 'Received 24.9T.', date: "2025-11-12", timestamp: new Date('2025-11-12T09:00:00') },
+                        { id: 23, unitId: 6, type: 'order', message: "Production Order #303 (B250)", time: "11:00 AM", estStartTime: "2025-11-12T11:00:00", estEndTime: "2025-11-12T11:30:00", status: 'pending', user: null, recipeId: 1, quantity: 6, date: "2025-11-12", timestamp: new Date('2025-11-12T11:00:00') },
+                        { id: 24, unitId: 'w1', type: 'delivery', message: "Refill Rezervor Tampon", time: "11:30 AM", estStartTime: "2025-11-12T11:30:00", estEndTime: "2025-11-12T12:00:00", status: 'acknowledged', user: 'admin', notes: 'Pump activated.', date: "2025-11-12", timestamp: new Date('2025-11-12T11:30:00') },
+                        { id: 25, unitId: 'f1', type: 'delivery', message: "Fuel Delivery (Diesel)", time: "02:00 PM", estStartTime: "2025-11-12T14:00:00", estEndTime: "2025-11-12T14:30:00", status: 'pending', user: null, date: "2025-11-12", timestamp: new Date('2025-11-12T14:00:00') },
+                        { id: 26, unitId: 1, type: 'order', message: "Order #299 (B400)", time: "10:00 AM", estStartTime: "2025-11-11T10:00:00", estEndTime: "2025-11-11T10:45:00", status: 'acknowledged', user: 'jsmith', date: "2025-11-11", timestamp: new Date('2025-11-11T10:00:00') },
+                        { id: 27, unitId: 4, type: 'delivery', message: "Delivery #110 (Nisip)", time: "02:00 PM", estStartTime: "2025-11-10T14:00:00", estEndTime: "2025-11-10T14:30:00", status: 'acknowledged', user: 'admin', date: "2025-11-10", timestamp: new Date('2025-11-10T14:00:00') },
+                        { id: 28, unitId: 'f1', type: 'alarm', message: "Fuel Level Low", time: "08:00 AM", estStartTime: "2025-11-05T08:00:00", estEndTime: "2025-11-05T08:00:00", status: 'acknowledged', user: 'admin', date: "2025-11-05", timestamp: new Date('2025-11-05T08:00:00') }
+                    ],
+                },
+                
+                // Live data for the selected fabric
+                storageUnits: [],
+                waterTanks: [],
+                fuelTanks: [],
+                additives: [],
+                recipes: [],
+                events: [],
+
+                // Other state
+                dashboardVisibility: { silos: true, bunkers: true, water: true, fuel: true },
+                timelineStartDate: new Date().toISOString().split('T')[0],
+                timelineEndDate: new Date().toISOString().split('T')[0],
+                resourceStartDate: new Date().toISOString().split('T')[0],
+                resourceEndDate: new Date().toISOString().split('T')[0],
+                productionStartDate: new Date().toISOString().split('T')[0],
+                productionEndDate: new Date().toISOString().split('T')[0],
+                currentEventId: null,
+                currentEventAction: null,
+                itemToHandle: null,
+                currentUnitId: null,
+                currentChartInterval: '3h',
+                currentStockEdit: { id: null, type: null, name: '', currentQty: 0, unit: '' }
+            },
+
+            // --- 2. CHART INSTANCES ---
+            charts: {
+                productionChartInstance: null,
+                resourceChartInstance: null,
+                unitDetailsChartInstance: null,
+            },
+
+            // --- 3. INITIALIZATION ---
+            // MODIFIED: init() is now called *after* a fabric is selected
+            init() {
+                // This function now initializes the *dashboard*, not the fabric selector
+                safeOn('#toggle-user-btn', 'click', App.handlers.toggleUserRole);
+                safeOn('#fabric-switcher', 'click', App.handlers.showFabricSelector); // NEW: Listener for fabric switcher
+
+                // Sidebar nav
+                $$('.nav-link').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const pageId = e.currentTarget.getAttribute('data-page');
+                        App.ui.showPage(pageId);
+                        if (window.innerWidth < 768) {
+                            App.handlers.toggleMobileMenu(false); // Force close
+                        }
+                    });
+                });
+                
+                // Bottom nav
+                $$('.bottom-nav-link').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const pageId = e.currentTarget.getAttribute('data-page');
+                        App.ui.showPage(pageId);
+                    });
+                });
+                
+                // Modal Listeners
+                safeOn('#modal-backdrop', 'click', App.ui.hideAllModals);
+                safeOn('#edit-unit-cancel', 'click', () => App.ui.hideModal('edit-unit-modal'));
+                safeOn('#event-action-cancel', 'click', () => App.ui.hideModal('event-action-modal'));
+                safeOn('#unit-details-close', 'click', () => App.ui.hideModal('unit-details-modal'));
+                safeOn('#camera-modal-close', 'click', () => App.ui.hideModal('camera-modal'));
+                safeOn('#confirm-remove-cancel', 'click', () => App.ui.hideModal('confirm-remove-modal'));
+                safeOn('#confirm-remove-btn', 'click', App.handlers.executeRemove);
+                safeOn('#stock-edit-cancel', 'click', () => App.ui.hideModal('stock-edit-modal'));
+                safeOn('#edit-additive-cancel', 'click', () => App.ui.hideModal('edit-additive-modal'));
+                safeOn('#edit-water-fuel-cancel', 'click', () => App.ui.hideModal('edit-water-fuel-modal'));
+
+                // Form Submit Listeners
+                safeOn('#edit-unit-form', 'submit', App.handlers.submitEditUnit);
+                safeOn('#event-action-form', 'submit', App.handlers.submitEventAction);
+                safeOn('#edit-additive-form', 'submit', App.handlers.submitEditAdditive);
+                safeOn('#edit-water-fuel-form', 'submit', App.handlers.submitEditWaterFuel);
+                safeOn('#stock-edit-add', 'click', () => App.handlers.submitStockEdit('add'));
+                safeOn('#stock-edit-subtract', 'click', () => App.handlers.submitStockEdit('subtract'));
+                
+                // Page-specific Button Listeners
+                safeOn('#generate-report-btn', 'click', App.handlers.generateReport);
+                safeOn('#inventory-add-storage-btn', 'click', App.handlers.showAddUnitModal);
+                safeOn('#inventory-add-additive-btn', 'click', App.handlers.showAddAdditiveModal);
+                safeOn('#inventory-add-water-btn', 'click', () => App.handlers.showAddWaterFuelModal('water'));
+                safeOn('#inventory-add-fuel-btn', 'click', () => App.handlers.showAddWaterFuelModal('fuel'));
+                
+                // Dashboard view options
+                safeOn('#view-options-btn', 'click', App.handlers.toggleViewOptionsDropdown);
+                $$('.dashboard-toggle').forEach(toggle => {
+                    toggle.onchange = (e) => {
+                        App.handlers.toggleDashboardCategory(e.currentTarget.dataset.category, e.currentTarget.checked);
+                    };
+                });
+                document.addEventListener('click', (e) => {
+                    const dropdown = $('#view-options-dropdown');
+                    const button = $('#view-options-btn');
+                    if (dropdown && button && !dropdown.classList.contains('hidden')) {
+                        if (!dropdown.contains(e.target) && !button.contains(e.target)) {
+                            App.handlers.toggleViewOptionsDropdown(false); // Force close
+                        }
+                    }
+                });
+                
+                // Timeline date listeners
+                const timelineStart = $('#timeline-start-date');
+                if (timelineStart) {
+                    timelineStart.value = App.state.timelineStartDate;
+                    timelineStart.onchange = App.handlers.updateTimelineDate;
+                }
+                const timelineEnd = $('#timeline-end-date');
+                if (timelineEnd) {
+                    timelineEnd.value = App.state.timelineEndDate;
+                    timelineEnd.onchange = App.handlers.updateTimelineDate;
+                }
+                
+                // Chart date listeners
+                const resourceStart = $('#resource-start-date');
+                if (resourceStart) {
+                    resourceStart.value = App.state.resourceStartDate;
+                    resourceStart.onchange = App.handlers.updateResourceChartDate;
+                }
+                const resourceEnd = $('#resource-end-date');
+                if (resourceEnd) {
+                    resourceEnd.value = App.state.resourceEndDate;
+                    resourceEnd.onchange = App.handlers.updateResourceChartDate;
+                }
+                const productionStart = $('#production-start-date');
+                if (productionStart) {
+                    productionStart.value = App.state.productionStartDate;
+                    productionStart.onchange = App.handlers.updateProductionChartDate;
+                }
+                const productionEnd = $('#production-end-date');
+                if (productionEnd) {
+                    productionEnd.value = App.state.productionEndDate;
+                    productionEnd.onchange = App.handlers.updateProductionChartDate;
+                }
+                
+                // Inventory tab listeners
+                $$('.tab-btn').forEach(btn => {
+                    btn.onclick = (e) => App.handlers.switchInventoryTab(e.currentTarget);
+                });
+                
+                // Initial render
+                App.ui.showPage('dashboard'); // Start on dashboard
+                App.ui.applyUserRoles(); // Set initial role
+                lucide.createIcons(); // Render all icons
+                
+                // Start live data simulation
+                // Make sure simulation doesn't run multiple times
+                if (!App.simulation.intervalId) {
+                     App.simulation.intervalId = setInterval(App.simulation.simulateDataUpdate, 3000);
+                }
+            },
+
+            // --- 4. UI & NAVIGATION ---
+            ui: {
+                showPage(pageId) {
+                    $$('.page-content').forEach(page => page.classList.add('hidden'));
+                    
+                    // Reset all nav links (sidebar)
+                    $$('.nav-link').forEach(link => {
+                        link.classList.remove('bg-blue-600', 'text-white', 'font-semibold');
+                        link.classList.add('text-gray-300', 'hover:bg-gray-700', 'hover:text-white');
+                    });
+                    // Reset all nav links (bottom bar)
+                    $$('.bottom-nav-link').forEach(link => {
+                        link.classList.remove('text-blue-500', 'bg-gray-700'); // active
+                        link.classList.add('text-gray-400', 'hover:text-white', 'hover:bg-gray-700'); // inactive
+                    });
+                    
+                    const targetPage = $(`#page-${pageId}`);
+                    if (targetPage) targetPage.classList.remove('hidden');
+                    
+                    // Activate target nav links (sidebar)
+                    $$(`.nav-link[data-page="${pageId}"]`).forEach(link => {
+                        link.classList.add('bg-blue-600', 'text-white', 'font-semibold');
+                        link.classList.remove('text-gray-300', 'hover:bg-gray-700', 'hover:text-white');
+                    });
+                    // Activate target nav links (bottom bar)
+                    $$(`.bottom-nav-link[data-page="${pageId}"]`).forEach(link => {
+                        link.classList.add('text-blue-500', 'bg-gray-700');
+                        link.classList.remove('text-gray-400', 'hover:text-white', 'hover:bg-gray-700');
+                    });
+                    
+                    const titles = {
+                        dashboard: "Dashboard",
+                        inventory: "Inventory Management",
+                        reports: "Generate Reports"
+                    };
+                    $('#page-title').textContent = titles[pageId] || "Dashboard";
+                    
+                    // Destroy charts when changing page to prevent memory leaks
+                    if (App.charts.productionChartInstance) App.charts.productionChartInstance.destroy();
+                    if (App.charts.resourceChartInstance) App.charts.resourceChartInstance.destroy();
+
+                    if (pageId === 'dashboard') {
+                        App.render.dashboard();
+                        App.render.alarms();
+                        App.render.timeline();
+                        App.render.productionChart();
+                        App.render.resourceChart();
+                    } else if (pageId === 'inventory') {
+                        App.render.inventoryTable();
+                        App.render.additivesTable();
+                        App.render.waterTable();
+                        App.render.fuelTable();
+                    }
+                },
+                
+                applyUserRoles() {
+                    const role = App.state.currentUserRole;
+                    const isOperator = role === 'operator';
+                    
+                    $$('.admin-only').forEach(el => {
+                        if (el.tagName === 'TH' || el.tagName === 'TD') return;
+                        el.style.display = isOperator ? 'none' : 'flex';
+                    });
+                    
+                    $('#current-role').textContent = isOperator ? 'Operator View' : 'Administrator View';
+                    $('#user-role-label').textContent = isOperator ? 'Switch to Admin' : 'Switch to Operator';
+                    
+                    if (!$('#page-inventory').classList.contains('hidden')) {
+                        App.render.inventoryTable();
+                        App.render.additivesTable();
+                        App.render.waterTable();
+                        App.render.fuelTable();
+                    }
+                },
+                
+                applyUserRolesToInventory() {
+                    const display = App.state.currentUserRole === 'operator' ? 'none' : 'table-cell';
+                    $$('#page-inventory .admin-only').forEach(el => {
+                        if (el.tagName === 'TH' || el.tagName === 'TD') {
+                            el.style.display = display;
+                        }
+                    });
+                },
+
+                showModal(modalId) {
+                    $('#modal-backdrop').classList.remove('hidden');
+                    const modal = $(`#${modalId}`);
+                    if (modal) modal.style.display = 'block';
+                },
+
+                hideModal(modalId) {
+                    const modal = $(`#${modalId}`);
+                    if (modal) modal.style.display = 'none';
+                    
+                    if (modalId === 'unit-details-modal' && App.charts.unitDetailsChartInstance) {
+                        App.charts.unitDetailsChartInstance.destroy();
+                        App.charts.unitDetailsChartInstance = null;
+                        App.state.currentUnitId = null; 
+                    }
+                    if ($$('.modal[style*="display: block"]').length === 0) {
+                        $('#modal-backdrop').classList.add('hidden');
+                    }
+                },
+                
+                hideAllModals() {
+                    $$('.modal').forEach(modal => {
+                        modal.style.display = 'none';
+                    });
+                    if (App.charts.unitDetailsChartInstance) {
+                        App.charts.unitDetailsChartInstance.destroy();
+                        App.charts.unitDetailsChartInstance = null;
+                        App.state.currentUnitId = null;
+                    }
+                    
+                    const errorEl = $('#event-action-error');
+                    if (errorEl) errorEl.classList.add('hidden');
+                    const notesEl = $('#event-action-notes');
+                    if (notesEl) notesEl.classList.remove('border-red-500');
+                    
+                    $('#modal-backdrop').classList.add('hidden');
+                },
+                
+                showUnitDetails(unitId) {
+                    let unit = App.state.storageUnits.find(u => u.id == unitId);
+                    let unitType = 'storage';
+                    
+                    if (!unit) {
+                        unit = App.state.waterTanks.find(u => u.id == unitId);
+                        unitType = 'water';
+                    }
+                    if (!unit) {
+                        unit = App.state.fuelTanks.find(u => u.id == unitId);
+                        unitType = 'fuel';
+                    }
+                    if (!unit) return;
+                    
+                    App.state.currentUnitId = unit.id; 
+                    App.state.currentChartInterval = '3h'; // Reset to default
+
+                    $('#unit-modal-title').textContent = `${unit.name} Details`;
+                    $('#unit-modal-material').textContent = unit.material || unit.type;
+                    
+                    const intervals = [
+                        { id: '3h', label: 'Last 3H' },
+                        { id: '24h', label: 'Last 24H' },
+                        { id: '7d', label: 'Last 7D' },
+                        { id: '30d', label: 'Last 30D' }
+                    ];
+                    const intervalContainer = $('#unit-modal-intervals');
+                    intervalContainer.innerHTML = intervals.map(int => `
+                        <button 
+                            class="chart-toggle-btn ${int.id === App.state.currentChartInterval ? 'bg-blue-500 text-white border-blue-500' : 'bg-gray-50 text-gray-700 border-gray-300'}"
+                            onclick="App.handlers.setChartInterval('${int.id}')"
+                        >
+                            ${int.label}
+                        </button>
+                    `).join('');
+                    
+                    const togglesContainer = $('#unit-modal-toggles');
+                    togglesContainer.innerHTML = '';
+                    
+                    App.render.unitModalActions(unit.id);
+                    App.ui.showModal('unit-details-modal');
+                    lucide.createIcons();
+
+                    if (unitType === 'storage') {
+                        $('#unit-modal-mass').textContent = `${(unit.mass / 1000).toFixed(1)} T`;
+                        $('#unit-modal-volume').textContent = `${unit.volume.toFixed(1)} m³`;
+                        $('#unit-modal-capacity').textContent = `${(unit.capacity / 1000).toFixed(0)} T Cap.`;
+
+                        togglesContainer.innerHTML = `
+                            <button id="toggle-mass" class="chart-toggle-btn bg-blue-600 text-white border-blue-600" onclick="App.handlers.toggleChartDataset('mass')">Mass</button>
+                            <button id="toggle-volume" class="chart-toggle-btn bg-gray-50 text-gray-700 border-gray-300" onclick="App.handlers.toggleChartDataset('volume')">Volume</button>
+                        `;
+                        App.render.unitDetailsChart(unit, App.state.currentChartInterval);
+
+                    } else if (unitType === 'water') {
+                        $('#unit-modal-mass').textContent = 'N/A';
+                        $('#unit-modal-volume').textContent = `${unit.volume.toFixed(1)} m³`;
+                        $('#unit-modal-capacity').textContent = `${unit.capacity.toFixed(0)} m³ Cap.`;
+                        App.render.unitDetailsChart(unit, App.state.currentChartInterval, 'volume', 'm³');
+
+                    } else if (unitType === 'fuel') {
+                        $('#unit-modal-mass').textContent = 'N/A';
+                        $('#unit-modal-volume').textContent = `${unit.volume.toFixed(0)} L`;
+                        $('#unit-modal-capacity').textContent = `${unit.capacity.toFixed(0)} L Cap.`;
+                        App.render.unitDetailsChart(unit, App.state.currentChartInterval, 'volume', 'Litri');
+                    }
+                },
+            },
+            
+            // --- 5. RENDERING FUNCTIONS ---
+            render: {
+                dashboard() {
+                    $('#silos-section').style.display = App.state.dashboardVisibility.silos ? 'block' : 'none';
+                    $('#bunkers-section').style.display = App.state.dashboardVisibility.bunkers ? 'block' : 'none';
+                    $('#water-section').style.display = App.state.dashboardVisibility.water ? 'block' : 'none';
+                    $('#fuel-section').style.display = App.state.dashboardVisibility.fuel ? 'block' : 'none';
+
+                    const siloToggle = $('#toggle-silos');
+                    if (siloToggle) siloToggle.checked = App.state.dashboardVisibility.silos;
+                    const bunkerToggle = $('#toggle-bunkers');
+                    if (bunkerToggle) bunkerToggle.checked = App.state.dashboardVisibility.bunkers;
+                    const waterToggle = $('#toggle-water');
+                    if (waterToggle) waterToggle.checked = App.state.dashboardVisibility.water;
+                    const fuelToggle = $('#toggle-fuel');
+                    if (fuelToggle) fuelToggle.checked = App.state.dashboardVisibility.fuel;
+
+                    const silosGrid = $('#silos-grid');
+                    const bunkersGrid = $('#bunkers-grid');
+                    const waterGrid = $('#water-grid');
+                    const fuelGrid = $('#fuel-grid');
+
+                    if (!silosGrid || !bunkersGrid || !waterGrid || !fuelGrid) return;
+
+                    silosGrid.innerHTML = '';
+                    bunkersGrid.innerHTML = '';
+                    waterGrid.innerHTML = '';
+                    fuelGrid.innerHTML = '';
+
+                    App.state.storageUnits.forEach(unit => {
+                        if (unit.type === 'Silo') {
+                            silosGrid.innerHTML += App.render.siloCard(unit);
+                        } else if (unit.type === 'Bunker') {
+                            bunkersGrid.innerHTML += App.render.siloCard(unit);
+                        }
+                    });
+
+                    App.state.waterTanks.forEach(unit => {
+                        waterGrid.innerHTML += App.render.waterCard(unit);
+                    });
+                    
+                    App.state.fuelTanks.forEach(unit => {
+                        fuelGrid.innerHTML += App.render.fuelCard(unit);
+                    });
+                    
+                    lucide.createIcons();
+                },
+                
+                alarms() {
+                    const list = $('#alarm-list');
+                    if (!list) return;
+                    list.innerHTML = '';
+                    const pendingAlarms = App.state.events.filter(e => e.type === 'alarm' && e.status === 'pending');
+                    
+                    if (pendingAlarms.length === 0) {
+                        list.innerHTML = `<div class="text-center text-gray-500 py-4">
+                                            <i data-lucide="check-circle" class="h-8 w-8 mx-auto text-green-500"></i>
+                                            <span class="mt-2 block font-medium">All clear!</span>
+                                          </div>`;
+                    } else {
+                        pendingAlarms.sort((a,b) => b.id - a.id).forEach(alarm => {
+                            list.innerHTML += `
+                                <div class="flex items-start p-3 bg-red-50 rounded-lg">
+                                    <i data-lucide="alert-triangle" class="h-5 w-5 text-red-600 mt-1 flex-shrink-0"></i>
+                                    <div class="ml-3 flex-1">
+                                        <p class="text-sm font-semibold text-red-800">${alarm.message}</p>
+                                        <p class="text-xs text-red-600">${alarm.time}</p>
+                                        <button class="text-xs font-semibold text-blue-600 hover:underline mt-1" onclick="App.handlers.showEventActionModal(${alarm.id}, 'acknowledge')">
+                                            Acknowledge
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    lucide.createIcons();
+                },
+                
+                timeline() {
+                    const list = $('#timeline-list');
+                    if (!list) return;
+                    list.innerHTML = '';
+                    
+                    const startDate = App.state.timelineStartDate;
+                    const endDate = App.state.timelineEndDate;
+
+                    const todaysEvents = App.state.events
+                        .filter(e => e.date >= startDate && e.date <= endDate && e.type !== 'alarm')
+                        .sort((a, b) => (new Date(a.estStartTime)) - (new Date(b.estStartTime)));
+                    
+                    if (todaysEvents.length === 0) {
+                         list.innerHTML = `<div class="text-center text-gray-500 py-4">
+                                            <i data-lucide="calendar-off" class="h-8 w-8 mx-auto text-gray-400"></i>
+                                            <span class="mt-2 block font-medium">No events in this period.</span>
+                                          </div>`;
+                         lucide.createIcons();
+                         return;
+                    }
+                    
+                    const now = new Date();
+                    
+                    todaysEvents.forEach(event => {
+                        let icon, color;
+                        const eventStart = new Date(event.estStartTime);
+                        const isPast = eventStart < now || event.status === 'acknowledged' || event.status === 'problem';
+                        
+                        switch(event.type) {
+                            case 'order':       icon = 'arrow-up-circle'; color = 'text-blue-500'; break;
+                            case 'delivery':    icon = 'arrow-down-circle'; color = 'text-green-500'; break;
+                            case 'maintenance': icon = 'wrench'; color = 'text-yellow-600'; break;
+                        }
+                        
+                        const timeLabel = `${eventStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} - ${event.estEndTime ? new Date(event.estEndTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '...'}`;
+
+                        list.innerHTML += `
+                            <div class="flex items-start p-3 ${isPast ? 'opacity-50' : 'bg-gray-50'} rounded-lg">
+                                <i data-lucide="${icon}" class="h-5 w-5 ${color} mt-1 flex-shrink-0"></i>
+                                <div class="ml-3 flex-1">
+                                    <p class="text-sm font-semibold text-gray-800">${event.message}</p>
+                                    <p class="text-xs text-gray-500 font-medium">${timeLabel}</p>
+                                </div>
+                                ${isPast && event.status !== 'problem' ? '<i data-lucide="check" class="h-5 w-5 text-green-500"></i>' : ''}
+                                ${event.status === 'problem' ? '<i data-lucide="x-circle" class="h-5 w-5 text-red-500"></i>' : ''}
+                            </div>
+                        `;
+                    });
+                    lucide.createIcons();
+                },
+
+                getDaysArray(start, end) {
+                    const arr = [];
+                    const startDate = new Date(start);
+                    const endDate = new Date(end);
+                    if (isNaN(startDate) || isNaN(endDate)) return ["Invalid Date"];
+                    
+                    let current = new Date(startDate.getTime());
+                    
+                    while (current <= endDate) {
+                        arr.push(new Date(current).toLocaleDateString('ro-RO', { month: 'short', day: 'numeric' }));
+                        current.setDate(current.getDate() + 1);
+                    }
+                    
+                    if (arr.length === 0 && !isNaN(startDate)) {
+                         return [startDate.toLocaleDateString('ro-RO', { month: 'short', day: 'numeric' })];
+                    }
+                    if (arr.length > 14) { 
+                        const step = Math.ceil(arr.length / 14);
+                        return arr.filter((_, i) => i % step === 0);
+                    }
+                    return arr;
+                },
+
+                generateRandomData(length, maxVal) {
+                    let val = Math.random() * maxVal / 2 + (maxVal / 3);
+                    const data = [];
+                    for(let i=0; i<length; i++) {
+                        val += (Math.random() - 0.45) * (maxVal / 10);
+                        data.push(Math.max(0, Math.round(val)));
+                    }
+                    return data;
+                },
+
+                productionChart() {
+                    const canvas = $('#production-chart');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    if (App.charts.productionChartInstance) {
+                        App.charts.productionChartInstance.destroy();
+                    }
+                    
+                    const labels = App.render.getDaysArray(App.state.productionStartDate, App.state.productionEndDate);
+                    
+                    const recipeNames = App.state.recipes.map(r => r.name);
+                    const colors = ['#3b82f6', '#10b981', '#ef4444', '#f97316'];
+                    const lightColors = ['rgba(59, 130, 246, 0.3)', 'rgba(16, 185, 129, 0.3)', 'rgba(239, 68, 68, 0.3)', 'rgba(249, 115, 22, 0.3)'];
+
+                    const datasets = [];
+                    
+                    recipeNames.forEach((name, index) => {
+                        const actualData = App.render.generateRandomData(labels.length, 50);
+                        const predictedData = actualData.map(d => d + Math.random() * 10); 
+                        
+                        datasets.push({
+                            label: `${name} (Prod.)`,
+                            data: actualData,
+                            backgroundColor: colors[index % colors.length],
+                            stack: 'stack0',
+                        });
+                        datasets.push({
+                            label: `${name} (Pred.)`,
+                            data: predictedData.map((val, i) => val - actualData[i]), 
+                            backgroundColor: lightColors[index % lightColors.length],
+                            stack: 'stack0',
+                        });
+                    });
+
+                    App.charts.productionChartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: datasets
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: { stacked: true },
+                                y: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Cubic Meters (m³)' }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: true, position: 'bottom' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.dataset.label || '';
+                                            if (label) label += ': ';
+                                            if (context.parsed.y !== null) label += context.parsed.y.toFixed(1) + ' m³';
+                                            return label;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                },
+
+                resourceChart() {
+                    const canvas = $('#resource-chart');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    if (App.charts.resourceChartInstance) {
+                        App.charts.resourceChartInstance.destroy();
+                    }
+                    
+                    const labels = App.render.getDaysArray(App.state.resourceStartDate, App.state.resourceEndDate);
+                    const dataLength = labels.length;
+
+                    App.charts.resourceChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Cement Used',
+                                    data: App.render.generateRandomData(dataLength, 8000),
+                                    borderColor: '#ef4444',
+                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                    fill: true,
+                                    tension: 0.1
+                                },
+                                {
+                                    label: 'Sand Used',
+                                    data: App.render.generateRandomData(dataLength, 11000),
+                                    borderColor: '#eab308',
+                                    backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                                    fill: true,
+                                    tension: 0.1
+                                },
+                                {
+                                    label: 'Sand Projected',
+                                    data: App.render.generateRandomData(dataLength, 14000),
+                                    borderColor: '#eab308',
+                                    borderDash: [5, 5],
+                                    fill: false,
+                                    tension: 0.1
+                                },
+                                {
+                                    label: 'Cement Projected',
+                                    data: App.render.generateRandomData(dataLength, 9500),
+                                    borderColor: '#ef4444',
+                                    borderDash: [5, 5],
+                                    fill: false,
+                                    tension: 0.1
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Mass (kg)' }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 20 } }
+                            }
+                        }
+                    });
+                },
+                
+                inventoryTable() {
+                    const body = $('#inventory-table-body');
+                    if (!body) return;
+                    body.innerHTML = '';
+                    App.state.storageUnits.forEach(unit => {
+                        let statusColor = 'text-green-600';
+                        if (unit.status === 'low') statusColor = 'text-yellow-600';
+                        if (unit.status === 'error') statusColor = 'text-red-600';
+                        
+                        body.innerHTML += `
+                            <tr>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">${unit.name}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">${unit.type}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900">${unit.material}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900">${(unit.mass / 1000).toFixed(1)}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">${(unit.capacity / 1000).toFixed(0)}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900">${unit.volume.toFixed(1)}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm font-medium ${statusColor}">${unit.status.toUpperCase()}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm admin-only space-x-4">
+                                    <button class="text-green-600 hover:text-green-800 font-medium" onclick="App.handlers.showStockEditModal(${unit.id}, 'storage')">Stock</button>
+                                    <button class="text-blue-600 hover:text-blue-800 font-medium" onclick="App.handlers.showEditUnitModal(${unit.id})">Edit</button>
+                                    <button class="text-red-600 hover:text-red-800 font-medium" onclick="App.handlers.showRemoveConfirm(${unit.id}, 'storage', '${unit.name}')">Remove</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    App.ui.applyUserRolesToInventory();
+                },
+                
+                additivesTable() {
+                    const body = $('#additives-table-body');
+                    if (!body) return;
+                    body.innerHTML = '';
+                    App.state.additives.forEach(additive => {
+                        body.innerHTML += `
+                            <tr>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">${additive.name}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">${additive.refCode}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900">${additive.barrels}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900">${additive.estVolumeL} L</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm admin-only space-x-4">
+                                    <button class="text-green-600 hover:text-green-800 font-medium" onclick="App.handlers.showStockEditModal(${additive.id}, 'additive')">Stock</button>
+                                    <button class="text-blue-600 hover:text-blue-800 font-medium" onclick="App.handlers.showEditAdditiveModal(${additive.id})">Edit</button>
+                                    <button class="text-red-600 hover:text-red-800 font-medium" onclick="App.handlers.showRemoveConfirm(${additive.id}, 'additive', '${additive.name}')">Remove</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    App.ui.applyUserRolesToInventory();
+                },
+
+                waterTable() {
+                    const body = $('#water-table-body');
+                    if (!body) return;
+                    body.innerHTML = '';
+                    App.state.waterTanks.forEach(unit => {
+                        let statusColor = 'text-green-600';
+                        if (unit.status === 'low') statusColor = 'text-yellow-600';
+                        
+                        body.innerHTML += `
+                            <tr>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">${unit.name}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">${unit.type}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900">${unit.volume.toFixed(1)}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">${unit.capacity.toFixed(0)}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm font-medium ${statusColor}">${unit.status.toUpperCase()}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm admin-only space-x-4">
+                                    <button class="text-green-600 hover:text-green-800 font-medium" onclick="App.handlers.showStockEditModal('${unit.id}', 'water')">Stock</button>
+                                    <button class="text-blue-600 hover:text-blue-800 font-medium" onclick="App.handlers.showEditWaterFuelModal('${unit.id}', 'water')">Edit</button>
+                                    <button class="text-red-600 hover:text-red-800 font-medium" onclick="App.handlers.showRemoveConfirm('${unit.id}', 'water', '${unit.name}')">Remove</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    App.ui.applyUserRolesToInventory();
+                },
+                
+                fuelTable() {
+                    const body = $('#fuel-table-body');
+                    if (!body) return;
+                    body.innerHTML = '';
+                    App.state.fuelTanks.forEach(unit => {
+                        let statusColor = 'text-green-600';
+                        if (unit.status === 'low') statusColor = 'text-yellow-600';
+                        
+                        body.innerHTML += `
+                            <tr>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">${unit.name}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">${unit.type}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900">${unit.volume.toFixed(0)}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">${unit.capacity.toFixed(0)}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm font-medium ${statusColor}">${unit.status.toUpperCase()}</td>
+                                <td class="table-cell px-6 py-4 whitespace-nowrap text-sm admin-only space-x-4">
+                                    <button class="text-green-600 hover:text-green-800 font-medium" onclick="App.handlers.showStockEditModal('${unit.id}', 'fuel')">Stock</button>
+                                    <button class="text-blue-600 hover:text-blue-800 font-medium" onclick="App.handlers.showEditWaterFuelModal('${unit.id}', 'fuel')">Edit</button>
+                                    <button class="text-red-600 hover:text-red-800 font-medium" onclick="App.handlers.showRemoveConfirm('${unit.id}', 'fuel', '${unit.name}')">Remove</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    App.ui.applyUserRolesToInventory();
+                },
+                
+                siloCard(unit) {
+                    const fillPercent = (unit.mass / unit.capacity) * 100;
+                    let barColor = 'bg-blue-500';
+                    let statusColor = 'text-gray-500';
+                    
+                    if (unit.status === 'low') barColor = 'bg-yellow-500';
+                    else if (unit.status === 'error') barColor = 'bg-red-500';
+                    
+                    if (unit.status === 'low') statusColor = 'text-yellow-600';
+                    else if (unit.status === 'error') statusColor = 'text-red-600';
+
+                    return `
+                        <div class="bg-white rounded-2xl shadow-lg overflow-hidden transition-all hover:shadow-xl">
+                            <div class="p-5">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-semibold text-lg text-gray-800">${unit.name}</span>
+                                    <button class="text-gray-400 hover:text-blue-500" onclick="App.handlers.viewCamera(0, 'Live Feed: ${unit.name}', '${unit.name}')">
+                                        <i data-lucide="camera" class="h-5 w-5"></i>
+                                    </button>
+                                </div>
+                                <div class="text-sm text-gray-500 mt-1">${unit.material}</div>
+                            </div>
+                            <div class="p-5 border-t border-gray-100 cursor-pointer" onclick="App.ui.showUnitDetails('${unit.id}')">
+                                <div class="flex justify-between items-end">
+                                    <div>
+                                        <div class="text-3xl font-bold text-gray-900">${(unit.mass / 1000).toFixed(1)} <span class="text-xl font-medium text-gray-500">T</span></div>
+                                        <div class="text-sm text-gray-500 mb-2">of ${(unit.capacity / 1000).toFixed(0)} T Capacity</div>
+                                    </div>
+                                    <span class="text-xs font-medium px-2 py-1 rounded-full ${barColor} bg-opacity-10 ${statusColor}">
+                                        ${unit.status.toUpperCase()}
+                                    </span>
+                                </div>
+                                <div class="bg-gray-200 rounded-lg overflow-hidden h-2.5 mt-2">
+                                    <div class="h-full rounded-r-full ${barColor} transition-all duration-500 ease-out" style="width: ${fillPercent}%;"></div>
+                                </div>
+                                <div class="text-sm text-gray-500 mt-3 flex flex-col space-y-1">
+                                    <span class="flex items-center">
+                                        <i data-lucide="box" class="h-4 w-4 mr-2 text-purple-500"></i>
+                                        Volum: <span class="font-medium text-gray-700 ml-1">${unit.volume.toFixed(1)} m³</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                },
+                
+                waterCard(unit) {
+                    const fillPercent = (unit.volume / unit.capacity) * 100;
+                    let barColor = 'bg-blue-500';
+                    let statusColor = 'text-gray-500';
+                    if (unit.status === 'low') {
+                        barColor = 'bg-yellow-500';
+                        statusColor = 'text-yellow-600';
+                    }
+                    
+                    return `
+                        <div class="bg-white rounded-2xl shadow-lg overflow-hidden transition-all hover:shadow-xl cursor-pointer" onclick="App.ui.showUnitDetails('${unit.id}')">
+                            <div class="p-5">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-semibold text-lg text-gray-800">${unit.name}</span>
+                                    <span class="text-xs font-medium px-2 py-1 rounded-full ${barColor} bg-opacity-10 ${statusColor}">
+                                        ${unit.status.toUpperCase()}
+                                    </span>
+                                </div>
+                                <div class="text-sm text-gray-500 mt-1">${unit.type}</div>
+                            </div>
+                            <div class="p-5 border-t border-gray-100">
+                                <div class="text-3xl font-bold text-gray-900">${unit.volume.toFixed(1)} <span class="text-xl font-medium text-gray-500">m³</span></div>
+                                <div class="text-sm text-gray-500 mb-2">of ${unit.capacity.toFixed(0)} m³ Capacity</div>
+                                <div class="bg-gray-200 rounded-lg overflow-hidden h-2.5">
+                                    <div class="h-full rounded-r-full ${barColor} transition-all duration-500 ease-out" style="width: ${fillPercent}%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                },
+                
+                fuelCard(unit) {
+                    const fillPercent = (unit.volume / unit.capacity) * 100;
+                    let barColor = 'bg-gray-700';
+                    let statusColor = 'text-gray-500';
+                    if (unit.status === 'low') {
+                        barColor = 'bg-yellow-500';
+                        statusColor = 'text-yellow-600';
+                    }
+                    
+                    return `
+                        <div class="bg-white rounded-2xl shadow-lg overflow-hidden transition-all hover:shadow-xl cursor-pointer" onclick="App.ui.showUnitDetails('${unit.id}')">
+                            <div class="p-5">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-semibold text-lg text-gray-800">${unit.name}</span>
+                                    <span class="text-xs font-medium px-2 py-1 rounded-full ${barColor} bg-opacity-10 ${statusColor}">
+                                        ${unit.status.toUpperCase()}
+                                    </span>
+                                </div>
+                                <div class="text-sm text-gray-500 mt-1">${unit.type}</div>
+                            </div>
+                            <div class="p-5 border-t border-gray-100">
+                                <div class="text-3xl font-bold text-gray-900">${unit.volume.toFixed(0)} <span class="text-xl font-medium text-gray-500">L</span></div>
+                                <div class="text-sm text-gray-500 mb-2">of ${unit.capacity.toFixed(0)} L Capacity</div>
+                                <div class="bg-gray-200 rounded-lg overflow-hidden h-2.5">
+                                    <div class="h-full rounded-r-full ${barColor} transition-all duration-500 ease-out" style="width: ${fillPercent}%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                },
+
+                unitDetailsChart(unit, interval, metric = 'mass', unitLabel = 'kg') {
+                    const ctx = $('#unit-details-chart').getContext('2d');
+                    const { labels, primaryData, volumeData, annotations } = App.simulation.generateChartData(unit, interval);
+                    
+                    const titleMap = { '3h': 'Last 3 Hours', '24h': 'Last 24 Hours', '7d': 'Last 7 Days', '30d': 'Last 30 Days' };
+                    $('#unit-modal-chart-title').textContent = `Live Sensor Data (${titleMap[interval] || 'Custom'})`;
+
+                    if (App.charts.unitDetailsChartInstance) {
+                        App.charts.unitDetailsChartInstance.destroy();
+                    }
+
+                    const datasets = [];
+                    const scales = {
+                        x: { title: { display: true, text: 'Time' } }
+                    };
+                    
+                    if (unit.mass !== undefined) {
+                        datasets.push(
+                            { label: 'Mass', data: primaryData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', yAxisID: 'y-mass', fill: true, tension: 0.1 },
+                            { label: 'Volume', data: volumeData, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', yAxisID: 'y-volume', fill: false, tension: 0.1, hidden: true }
+                        );
+                        scales['y-mass'] = { type: 'linear', position: 'left', title: { display: true, text: 'Mass (kg)' }, ticks: { color: '#3b82f6' } };
+                        scales['y-volume'] = { type: 'linear', position: 'right', title: { display: true, text: 'Volume (m³)' }, ticks: { color: '#10b981' }, grid: { drawOnChartArea: false } };
+                    } else {
+                         const label = (unit.capacity > 1000 ? 'Litri' : 'm³');
+                         datasets.push({ label: 'Volume', data: primaryData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', yAxisID: 'y-volume', fill: true, tension: 0.1 });
+                        scales['y-volume'] = { type: 'linear', position: 'left', title: { display: true, text: label }, ticks: { color: '#3b82f6' } };
+                    }
+
+
+                    App.charts.unitDetailsChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: { labels: labels, datasets: datasets },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: scales,
+                            plugins: {
+                                legend: { display: false },
+                                annotation: { annotations: annotations }
+                            },
+                            interaction: { mode: 'index', intersect: false },
+                        }
+                    });
+                    
+                    App.charts.unitDetailsChartInstance.data.datasets.forEach(dataset => {
+                        const btn = $(`#toggle-${dataset.label.toLowerCase()}`);
+                        if (btn) {
+                            App.handlers.toggleChartDataset(dataset.label.toLowerCase(), dataset.hidden);
+                        }
+                    });
+                },
+                
+                unitModalActions(unitId) {
+                    const container = $('#unit-modal-actions');
+                    container.innerHTML = '';
+                    
+                    const relatedEvents = App.state.events
+                        .filter(e => e.unitId == unitId) 
+                        .sort((a, b) => b.id - a.id);
+
+                    if (relatedEvents.length === 0) {
+                        container.innerHTML = `<p class="text-sm text-gray-500 text-center">No recent events for this unit.</p>`;
+                        return;
+                    }
+
+                    relatedEvents.forEach(event => {
+                        let icon, color;
+                        switch(event.type) {
+                            case 'alarm':       icon = 'alert-triangle'; color = 'text-red-600'; break;
+                            case 'order':       icon = 'arrow-up-circle'; color = 'text-blue-600'; break;
+                            case 'delivery':    icon = 'arrow-down-circle'; color = 'text-green-600'; break;
+                            case 'maintenance': icon = 'wrench'; color = 'text-yellow-600'; break;
+                            default:            icon = 'info'; color = 'text-gray-600';
+                        }
+                        
+                        let actionButtons = '';
+                        if (event.status === 'pending') {
+                            actionButtons = `
+                                <button class="btn-action py-1 px-2.5 text-xs rounded-md font-medium transition bg-blue-100 text-blue-700 hover:bg-blue-200" onclick="App.handlers.showEventActionModal(${event.id}, 'acknowledge')">Acknowledge</button>
+                                <button class="btn-action py-1 px-2.5 text-xs rounded-md font-medium transition bg-red-100 text-red-700 hover:bg-red-200 ml-2" onclick="App.handlers.showEventActionModal(${event.id}, 'problem')">Mark Problem</button>
+                            `;
+                        } else if (event.status === 'acknowledged') {
+                            actionButtons = `<span class="status-badge text-xs font-semibold px-3 py-1 rounded-md bg-green-100 text-green-800">Acknowledged by ${event.user}</span>`;
+                        } else if (event.status === 'problem') {
+                            actionButtons = `<span class="status-badge text-xs font-semibold px-3 py-1 rounded-md bg-red-100 text-red-800">Problem marked by ${event.user}</span>`;
+                        }
+
+                        container.innerHTML += `
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg">
+                                <div class="flex items-center mb-2 sm:mb-0">
+                                    <i class="h-5 w-5 ${color} flex-shrink-0" data-lucide="${icon}"></i>
+                                    <div class="ml-3">
+                                        <p class="text-sm font-medium text-gray-800">${event.message}</p>
+                                        <p class="text-xs text-gray-500">${event.time}</p>
+                                    </div>
+                                </div>
+                                <div class="flex-shrink-0 flex items-center justify-end">
+                                    <div class="mr-3">
+                                        ${actionButtons}
+                                    </div>
+                                    <button class="btn-action py-1 px-2.5 text-xs rounded-md font-medium transition bg-gray-700 text-white hover:bg-gray-900" onclick="App.handlers.viewCamera(${event.id}, '${event.message}', '${event.time}')">
+                                        <i class="h-4 w-4" data-lucide="camera"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    lucide.createIcons();
+                },
+            },
+
+            // --- 6. EVENT HANDLERS ---
+            handlers: {
+                // --- NEW Fabric Handlers ---
+                selectFabric(fabricName) {
+                    App.state.selectedFabric = fabricName;
+                    
+                    // Simulate loading different data
+                    App.simulation.loadFabricData(fabricName);
+                    
+                    // Update the UI
+                    $('#fabric-name-display').textContent = fabricName;
+                    $('#fabric-selector').classList.add('hidden');
+                    $('#app-container').classList.remove('hidden');
+                    
+                    // Initialize the dashboard app
+                    App.init();
+                },
+
+                showFabricSelector() {
+                    App.state.selectedFabric = null;
+
+                    // Hide the app, show the selector
+                    $('#app-container').classList.add('hidden');
+                    $('#fabric-selector').classList.remove('hidden');
+
+                    // Clean up: destroy charts to prevent leaks
+                    if (App.charts.productionChartInstance) App.charts.productionChartInstance.destroy();
+                    if (App.charts.resourceChartInstance) App.charts.resourceChartInstance.destroy();
+                    if (App.charts.unitDetailsChartInstance) App.charts.unitDetailsChartInstance.destroy();
+                    
+                    // Stop simulation interval if it's running
+                    if (App.simulation.intervalId) {
+                        clearInterval(App.simulation.intervalId);
+                        App.simulation.intervalId = null;
+                    }
+                },
+                
+                // --- Original Handlers ---
+                toggleMobileMenu(forceState) {
+                    const body = $('body');
+                    const sidebar = $('.mobile-sidebar');
+                    const overlay = $('.mobile-overlay');
+                    if (!sidebar || !overlay) return;
+
+                    const isOpen = body.classList.contains('sidebar-mobile-open');
+                    let newState = (typeof forceState === 'boolean') ? forceState : !isOpen;
+
+                    body.classList.toggle('sidebar-mobile-open', newState);
+                    
+                    if (newState) {
+                        overlay.classList.remove('hidden');
+                        sidebar.classList.remove('-translate-x-full');
+                        sidebar.classList.add('translate-x-0');
+                        lucide.createIcons();
+                    } else {
+                        overlay.classList.add('hidden');
+                        sidebar.classList.add('-translate-x-full');
+                        sidebar.classList.remove('translate-x-0');
+                    }
+                },
+
+                toggleUserRole() {
+                    const newRole = App.state.currentUserRole === 'administrator' ? 'operator' : 'administrator';
+                    App.state.currentUserRole = newRole;
+                    App.ui.applyUserRoles();
+                },
+                
+                showAddUnitModal() {
+                    const materialSelect = $('#edit-unit-material');
+                    materialSelect.innerHTML = '';
+                    const materials = new Set(App.state.storageUnits.map(u => u.material));
+                    materials.forEach(m => {
+                         materialSelect.innerHTML += `<option value="${m}">${m}</option>`;
+                    });
+                    materialSelect.innerHTML += `<option value="New Material">-- Alt Material --</option>`;
+                    
+                    $('#edit-unit-title').textContent = "Add New Storage Unit";
+                    $('#edit-unit-id').value = "";
+                    $('#edit-unit-original-capacity').value = "";
+                    $('#edit-unit-form').reset();
+                    
+                    App.ui.showModal('edit-unit-modal');
+                },
+                
+                showEditUnitModal(unitId) {
+                    const unit = App.state.storageUnits.find(u => u.id === unitId);
+                    if (!unit) return;
+                    
+                    App.handlers.showAddUnitModal(); 
+                    
+                    $('#edit-unit-title').textContent = `Edit ${unit.name}`;
+                    $('#edit-unit-id').value = unit.id;
+                    $('#edit-unit-name').value = unit.name;
+                    $('#edit-unit-type').value = unit.type;
+                    $('#edit-unit-material').value = unit.material;
+                    $('#edit-unit-capacity').value = unit.capacity;
+                    $('#edit-unit-original-capacity').value = unit.capacity;
+                    
+                    App.ui.showModal('edit-unit-modal');
+                },
+                
+                submitEditUnit(e) {
+                    e.preventDefault();
+                    const id = $('#edit-unit-id').value;
+                    const capacity = parseInt($('#edit-unit-capacity').value);
+                    const originalCapacity = parseInt($('#edit-unit-original-capacity').value);
+                    const name = $('#edit-unit-name').value || "New Unit";
+                    const type = $('#edit-unit-type').value;
+                    const material = $('#edit-unit-material').value;
+
+                    if (id) {
+                        const unit = App.state.storageUnits.find(u => u.id == id);
+                        if (unit) {
+                            unit.name = name;
+                            unit.type = type;
+                            unit.material = material;
+                            unit.capacity = capacity;
+                            unit.maxVolume = (capacity || 80000) / 1600; 
+
+                            if (capacity !== originalCapacity) {
+                                App.handlers.createCalibrationEvent(unit.id, unit.name);
+                            }
+                        }
+                    } else {
+                        const newUnit = {
+                            id: Math.max(0, ...App.state.storageUnits.map(u => u.id)) + 1,
+                            name: name,
+                            type: type,
+                            material: material,
+                            mass: 0,
+                            capacity: capacity || 80000,
+                            volume: 0,
+                            maxVolume: (capacity || 80000) / 1600,
+                            status: 'ok',
+                        };
+                        App.state.storageUnits.push(newUnit);
+                    }
+                    
+                    App.ui.hideModal('edit-unit-modal');
+                    App.render.dashboard();
+                    App.render.inventoryTable();
+                },
+                
+                showAddAdditiveModal() {
+                    $('#edit-additive-title').textContent = "Add New Additive";
+                    $('#edit-additive-id').value = "";
+                    $('#edit-additive-form').reset();
+                    App.ui.showModal('edit-additive-modal');
+                },
+                
+                showEditAdditiveModal(id) {
+                    const additive = App.state.additives.find(a => a.id === id);
+                    if (!additive) return;
+                    
+                    $('#edit-additive-title').textContent = `Edit ${additive.name}`;
+                    $('#edit-additive-id').value = additive.id;
+                    $('#edit-additive-name').value = additive.name;
+                    $('#edit-additive-refcode').value = additive.refCode;
+                    App.ui.showModal('edit-additive-modal');
+                },
+                
+                submitEditAdditive(e) {
+                    e.preventDefault();
+                    const id = $('#edit-additive-id').value;
+                    const name = $('#edit-additive-name').value || "New Additive";
+                    const refCode = $('#edit-additive-refcode').value || "N/A";
+
+                    if (id) {
+                        const additive = App.state.additives.find(a => a.id == id);
+                        if (additive) {
+                            additive.name = name;
+                            additive.refCode = refCode;
+                        }
+                    } else {
+                        const newAdditive = {
+                            id: Math.max(0, ...App.state.additives.map(a => a.id)) + 1,
+                            name: name,
+                            refCode: refCode,
+                            barrels: 0,
+                            estVolumeL: 0
+                        };
+                        App.state.additives.push(newAdditive);
+                    }
+                    App.ui.hideModal('edit-additive-modal');
+                    App.render.additivesTable();
+                },
+                
+                showAddWaterFuelModal(type) {
+                    const title = (type === 'water') ? "Add Water Tank" : "Add Fuel Tank";
+                    const unit = (type === 'water') ? "m³" : "L";
+                    
+                    $('#edit-water-fuel-title').textContent = title;
+                    $('#edit-water-fuel-id').value = "";
+                    $('#edit-water-fuel-type').value = type;
+                    $('#edit-water-fuel-unit').textContent = unit;
+                    $('#edit-water-fuel-form').reset();
+                    App.ui.showModal('edit-water-fuel-modal');
+                },
+                
+                showEditWaterFuelModal(id, type) {
+                    const unit = (type === 'water') 
+                        ? App.state.waterTanks.find(t => t.id === id) 
+                        : App.state.fuelTanks.find(t => t.id === id);
+                    if (!unit) return;
+                    
+                    const title = (type === 'water') ? "Edit Water Tank" : "Edit Fuel Tank";
+                    const unitLabel = (type === 'water') ? "m³" : "L";
+
+                    $('#edit-water-fuel-title').textContent = title;
+                    $('#edit-water-fuel-id').value = unit.id;
+                    $('#edit-water-fuel-type').value = type;
+                    $('#edit-water-fuel-name').value = unit.name;
+                    $('#edit-water-fuel-material').value = unit.type;
+                    $('#edit-water-fuel-capacity').value = unit.capacity;
+                    $('#edit-water-fuel-unit').textContent = unitLabel;
+                    App.ui.showModal('edit-water-fuel-modal');
+                },
+
+                submitEditWaterFuel(e) {
+                    e.preventDefault();
+                    const id = $('#edit-water-fuel-id').value;
+                    const type = $('#edit-water-fuel-type').value;
+                    const name = $('#edit-water-fuel-name').value || "New Tank";
+                    const material = $('#edit-water-fuel-material').value || "N/A";
+                    const capacity = parseInt($('#edit-water-fuel-capacity').value) || 0;
+
+                    if (type === 'water') {
+                        if (id) {
+                            const tank = App.state.waterTanks.find(t => t.id === id);
+                            if (tank) {
+                                tank.name = name;
+                                tank.type = material;
+                                tank.capacity = capacity;
+                            }
+                        } else {
+                            const newTank = {
+                                id: 'w' + (App.state.waterTanks.length + 1),
+                                name: name,
+                                type: material,
+                                volume: 0,
+                                capacity: capacity,
+                                status: 'ok'
+                            };
+                            App.state.waterTanks.push(newTank);
+                        }
+                        App.render.waterTable();
+                    } else if (type === 'fuel') {
+                        if (id) {
+                            const tank = App.state.fuelTanks.find(t => t.id === id);
+                            if (tank) {
+                                tank.name = name;
+                                tank.type = material;
+                                tank.capacity = capacity;
+                            }
+                        } else {
+                            const newTank = {
+                                id: 'f' + (App.state.fuelTanks.length + 1),
+                                name: name,
+                                type: material,
+                                volume: 0,
+                                capacity: capacity,
+                                status: 'ok'
+                            };
+                            App.state.fuelTanks.push(newTank);
+                        }
+                        App.render.fuelTable();
+                    }
+                    
+                    App.ui.hideModal('edit-water-fuel-modal');
+                    App.render.dashboard(); 
+                },
+                
+                showStockEditModal(id, type) {
+                    let unit, currentQty, unitLabel;
+                    
+                    if (type === 'storage') {
+                        unit = App.state.storageUnits.find(u => u.id == id);
+                        currentQty = unit.mass;
+                        unitLabel = "kg";
+                    } else if (type === 'additive') {
+                        unit = App.state.additives.find(a => a.id == id);
+                        currentQty = unit.barrels;
+                        unitLabel = "barrels";
+                    } else if (type === 'water') {
+                        unit = App.state.waterTanks.find(t => t.id == id);
+                        currentQty = unit.volume;
+                        unitLabel = "m³";
+                    } else if (type === 'fuel') {
+                        unit = App.state.fuelTanks.find(t => t.id == id);
+                        currentQty = unit.volume;
+                        unitLabel = "L";
+                    }
+                    
+                    if (!unit) return;
+                    
+                    App.state.currentStockEdit = { id, type, name: unit.name, currentQty, unit: unitLabel };
+                    
+                    $('#stock-edit-name').textContent = unit.name;
+                    $('#stock-edit-current').textContent = `${currentQty} ${unitLabel}`;
+                    $('#stock-edit-amount').value = '';
+                    $('#stock-edit-amount').placeholder = `Enter amount in ${unitLabel}`;
+                    App.ui.showModal('stock-edit-modal');
+                },
+
+                submitStockEdit(action) {
+                    const amount = parseFloat($('#stock-edit-amount').value);
+                    if (isNaN(amount) || amount <= 0) {
+                        alert("Please enter a valid, positive amount.");
+                        return;
+                    }
+                    
+                    const { id, type } = App.state.currentStockEdit;
+                    
+                    if (type === 'storage') {
+                        const unit = App.state.storageUnits.find(u => u.id == id);
+                        if (action === 'add') unit.mass += amount;
+                        else unit.mass = Math.max(0, unit.mass - amount);
+                        unit.volume = unit.mass / 1600;
+                        App.render.inventoryTable();
+                    } else if (type === 'additive') {
+                        const unit = App.state.additives.find(a => a.id == id);
+                        if (action === 'add') unit.barrels += amount;
+                        else unit.barrels = Math.max(0, unit.barrels - amount);
+                        unit.estVolumeL = unit.barrels * 200;
+                        App.render.additivesTable();
+                    } else if (type === 'water') {
+                        const unit = App.state.waterTanks.find(t => t.id == id);
+                        if (action === 'add') unit.volume += amount;
+                        else unit.volume = Math.max(0, unit.volume - amount);
+                        App.render.waterTable();
+                    } else if (type === 'fuel') {
+                        const unit = App.state.fuelTanks.find(t => t.id == id);
+                        if (action === 'add') unit.volume += amount;
+                        else unit.volume = Math.max(0, unit.volume - amount);
+                        App.render.fuelTable();
+                    }
+                    
+                    App.ui.hideModal('stock-edit-modal');
+                    App.render.dashboard();
+                },
+
+                createCalibrationEvent(unitId, unitName) {
+                    const now = new Date();
+                    const newEvent = {
+                        id: Math.max(0, ...App.state.events.map(e => e.id)) + 1,
+                        unitId: unitId,
+                        type: 'maintenance',
+                        message: `Recalibration Required (${unitName})`,
+                        time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                        status: 'pending',
+                        user: 'System',
+                        notes: `Capacity changed from ${$('#edit-unit-original-capacity').value} to ${$('#edit-unit-capacity').value}. Sensor recalibration needed.`,
+                        date: now.toISOString().split('T')[0],
+                        estStartTime: now.toISOString(),
+                        estEndTime: new Date(now.getTime() + 60 * 60000).toISOString(),
+                        timestamp: now
+                    };
+                    App.state.events.unshift(newEvent);
+                    if (!$('#page-dashboard').classList.contains('hidden')) {
+                         App.render.alarms();
+                         App.render.timeline();
+                    }
+                },
+                
+                showEventActionModal(eventId, action) {
+                    const event = App.state.events.find(e => e.id === eventId);
+                    if (!event) return;
+                    
+                    App.state.currentEventId = eventId;
+                    App.state.currentEventAction = action;
+
+                    const title = $('#event-action-title');
+                    const button = $('#event-action-submit-btn');
+                    
+                    if (action === 'acknowledge') {
+                        title.textContent = "Acknowledge Event";
+                        button.textContent = "Acknowledge";
+                        button.className = "py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md";
+                    } else if (action === 'problem') {
+                        title.textContent = "Mark Event as Problem";
+                        button.textContent = "Mark Problem";
+                        button.className = "py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-red-600 hover:bg-red-700 text-white";
+                    }
+
+                    $('#event-action-message').textContent = event.message;
+                    $('#event-action-notes').value = '';
+                    
+                    const linkSelect = $('#event-link-select');
+                    linkSelect.innerHTML = '<option value="">-- No Link (Custom Note) --</option>';
+                    App.state.events
+                        .filter(e => e.status === 'pending' && e.type !== 'alarm' && e.id !== eventId)
+                        .forEach(e => {
+                            linkSelect.innerHTML += `<option value="${e.id}">[${e.type}] ${e.message} @ ${e.time}</option>`;
+                        });
+
+                    App.ui.showModal('event-action-modal');
+                },
+                
+                submitEventAction(e) {
+                    e.preventDefault();
+                    const notes = $('#event-action-notes').value;
+                    const linkedEventId = $('#event-link-select').value;
+                    const notesEl = $('#event-action-notes');
+                    const errorEl = $('#event-action-error');
+
+                    if (!notes.trim() && !linkedEventId) { 
+                        errorEl.textContent = "Notes are required if not linking to an event.";
+                        errorEl.classList.remove('hidden');
+                        notesEl.classList.add('border-red-500');
+                        notesEl.focus();
+                        setTimeout(() => {
+                            notesEl.classList.remove('border-red-500');
+                            errorEl.classList.add('hidden');
+                        }, 2500);
+                        return;
+                    }
+                    
+                    errorEl.classList.add('hidden');
+                    const event = App.state.events.find(e => e.id === App.state.currentEventId);
+                    
+                    if (event) {
+                        event.status = App.state.currentEventAction;
+                        event.user = App.state.currentUserRole;
+                        
+                        if (linkedEventId) {
+                            const linkedEvent = App.state.events.find(e => e.id == linkedEventId);
+                            event.notes = `Linked to Event #${linkedEvent.id}: ${linkedEvent.message}. Notes: ${notes}`;
+                            if (linkedEvent) {
+                                linkedEvent.status = App.state.currentEventAction;
+                                linkedEvent.notes = (linkedEvent.notes || '') + ` [Linked from Alarm #${event.id}: ${event.message}]`;
+                            }
+                        } else {
+                            event.notes = notes;
+                        }
+                    }
+                    
+                    App.ui.hideModal('event-action-modal');
+                    App.render.alarms();
+                    
+                    if(!$('#unit-details-modal').classList.contains('hidden')) {
+                        const openUnitId = App.state.currentUnitId;
+                        if(openUnitId && openUnitId == event.unitId) {
+                            App.render.unitModalActions(openUnitId);
+                        }
+                    }
+                    if (!$('#page-dashboard').classList.contains('hidden')) App.render.timeline();
+                },
+
+                generateReport() {
+                    const start = $('#report-start-date').value;
+                    const end = $('#report-end-date').value;
+                    
+                    if (!start || !end) return;
+                    
+                    $('#report-title').textContent = `Report for ${start} to ${end}`;
+                    $('#report-output').classList.remove('hidden');
+                },
+                
+                toggleChartDataset(label, forceHidden = undefined) {
+                    if (!App.charts.unitDetailsChartInstance) return;
+                    const dataset = App.charts.unitDetailsChartInstance.data.datasets.find(d => d.label.toLowerCase() === label.toLowerCase());
+                    if (!dataset) return;
+                    
+                    dataset.hidden = (forceHidden !== undefined) ? forceHidden : !dataset.hidden;
+                    
+                    const btn = $(`#toggle-${label}`);
+                    if (!btn) return;
+                    
+                    const activeClasses = ['bg-blue-600', 'text-white', 'border-blue-600'];
+                    if (label === 'volume') activeClasses[0] = 'bg-green-600', activeClasses[2] = 'border-green-600';
+                    const inactiveClasses = ['bg-gray-50', 'text-gray-700', 'border-gray-300'];
+
+                    if (dataset.hidden) {
+                        btn.classList.remove(...activeClasses);
+                        btn.classList.add(...inactiveClasses);
+                    } else {
+                        btn.classList.remove(...inactiveClasses);
+                        btn.classList.add(...activeClasses);
+                    }
+                    
+                    if (forceHidden === undefined) {
+                        App.charts.unitDetailsChartInstance.update();
+                    }
+                },
+                
+                setChartInterval(interval) {
+                    if (!App.state.currentUnitId) return;
+                    App.state.currentChartInterval = interval;
+                    
+                    let unit = App.state.storageUnits.find(u => u.id == App.state.currentUnitId) ||
+                               App.state.waterTanks.find(u => u.id == App.state.currentUnitId) ||
+                               App.state.fuelTanks.find(u => u.id == App.state.currentUnitId);
+                    
+                    if (!unit) return;
+
+                    const intervalContainer = $('#unit-modal-intervals');
+                    intervalContainer.querySelectorAll('.chart-toggle-btn').forEach(btn => {
+                        btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
+                        btn.classList.add('bg-gray-50', 'text-gray-700', 'border-gray-300');
+                    });
+                    
+                    const activeBtn = intervalContainer.querySelector(`[onclick="App.handlers.setChartInterval('${interval}')"]`);
+                    if (activeBtn) {
+                        activeBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+                        activeBtn.classList.remove('bg-gray-50', 'text-gray-700', 'border-gray-300');
+                    }
+                    
+                    App.render.unitDetailsChart(unit, interval);
+                },
+                
+                viewCamera(eventId, eventMsg, eventTime) {
+                    $('#camera-modal-title').textContent = `${eventTime}`;
+                    $('#camera-modal-event-msg').textContent = `Event: ${eventMsg}`;
+                    $('#camera-modal-event-time').textContent = `Time: ${eventTime}`;
+                    App.ui.showModal('camera-modal');
+                },
+                
+                switchInventoryTab(tabElement) {
+                    $$('.tab-content').forEach(content => content.classList.add('hidden'));
+                    $$('.tab-btn').forEach(btn => {
+                        btn.classList.remove('text-blue-600', 'border-blue-600');
+                        btn.classList.add('text-gray-600', 'border-transparent', 'hover:border-gray-300', 'hover:text-gray-800');
+                    });
+                    
+                    const tabId = tabElement.getAttribute('data-tab');
+                    $(`#${tabId}`).classList.remove('hidden');
+                    tabElement.classList.add('text-blue-600', 'border-blue-600');
+                    tabElement.classList.remove('text-gray-600', 'border-transparent', 'hover:border-gray-300', 'hover:text-gray-800');
+                },
+                
+                showRemoveConfirm(id, type, name) {
+                    App.state.itemToHandle = { id, type, name };
+                    $('#confirm-remove-title').textContent = `Confirm Removal`;
+                    $('#confirm-remove-message').textContent = `Are you sure you want to remove "${name}"?`;
+                    $('#confirm-remove-btn').textContent = 'Remove';
+                    App.ui.showModal('confirm-remove-modal');
+                },
+                
+                executeRemove() {
+                    const { id, type } = App.state.itemToHandle;
+                    let index;
+                    
+                    if (type === 'storage') {
+                        index = App.state.storageUnits.findIndex(u => u.id == id);
+                        if (index > -1) App.state.storageUnits.splice(index, 1);
+                        App.render.inventoryTable();
+                        App.render.dashboard();
+                    } else if (type === 'additive') {
+                        index = App.state.additives.findIndex(a => a.id == id);
+                        if (index > -1) App.state.additives.splice(index, 1);
+                        App.render.additivesTable();
+                    } else if (type === 'water') {
+                        index = App.state.waterTanks.findIndex(w => w.id == id);
+                        if (index > -1) App.state.waterTanks.splice(index, 1);
+                        App.render.waterTable();
+                        App.render.dashboard();
+                    } else if (type === 'fuel') {
+                        index = App.state.fuelTanks.findIndex(f => f.id == id);
+                        if (index > -1) App.state.fuelTanks.splice(index, 1);
+                        App.render.fuelTable();
+                        App.render.dashboard();
+                    }
+                    
+                    App.ui.hideModal('confirm-remove-modal');
+                    App.state.itemToHandle = null;
+                },
+                
+                updateTimelineDate() {
+                    const startDate = $('#timeline-start-date').value;
+                    const endDate = $('#timeline-end-date').value;
+                    
+                    if (startDate && endDate) {
+                        if (endDate < startDate) {
+                            $('#timeline-end-date').value = startDate;
+                            App.state.timelineEndDate = startDate;
+                            App.state.timelineStartDate = startDate;
+                        } else {
+                            App.state.timelineStartDate = startDate;
+                            App.state.timelineEndDate = endDate;
+                        }
+                        App.render.timeline();
+                    }
+                },
+                
+                updateResourceChartDate() {
+                    const startDate = $('#resource-start-date').value;
+                    const endDate = $('#resource-end-date').value;
+                    
+                    if (startDate && endDate) {
+                        if (endDate < startDate) {
+                            $('#resource-end-date').value = startDate;
+                            App.state.resourceEndDate = startDate;
+                            App.state.resourceStartDate = startDate;
+                        } else {
+                            App.state.resourceStartDate = startDate;
+                            App.state.resourceEndDate = endDate;
+                        }
+                        App.render.resourceChart();
+                    }
+                },
+                
+                updateProductionChartDate() {
+                    const startDate = $('#production-start-date').value;
+                    const endDate = $('#production-end-date').value;
+                    
+                    if (startDate && endDate) {
+                        if (endDate < startDate) {
+                            $('#production-end-date').value = startDate;
+                            App.state.productionEndDate = startDate;
+                            App.state.productionStartDate = startDate;
+                        } else {
+                            App.state.productionStartDate = startDate;
+                            App.state.productionEndDate = endDate;
+                        }
+                        App.render.productionChart();
+                    }
+                },
+                
+                toggleViewOptionsDropdown(forceState) {
+                    const dropdown = $('#view-options-dropdown');
+                    if (!dropdown) return;
+                    if (typeof forceState === 'boolean') {
+                        dropdown.classList.toggle('hidden', !forceState);
+                    } else {
+                        dropdown.classList.toggle('hidden');
+                    }
+                },
+                
+                toggleDashboardCategory(category, isVisible) {
+                    if (App.state.dashboardVisibility[category] !== undefined) {
+                        App.state.dashboardVisibility[category] = isVisible;
+                        const section = $(`#${category}-section`);
+                        if (section) {
+                            section.style.display = isVisible ? 'block' : 'none';
+                        }
+                    }
+                }
+            },
+            
+            // --- 7. DATA SIMULATION ---
+            simulation: {
+                intervalId: null, // NEW: To control the simulation interval
+                
+                // NEW: Function to load/simulate data for a fabric
+                loadFabricData(fabricName) {
+                    // Deep copy base data to live state
+                    // This resets the state every time you switch fabrics
+                    App.state.storageUnits = JSON.parse(JSON.stringify(App.state.baseData.storageUnits));
+                    App.state.waterTanks = JSON.parse(JSON.stringify(App.state.baseData.waterTanks));
+                    App.state.fuelTanks = JSON.parse(JSON.stringify(App.state.baseData.fuelTanks));
+                    App.state.additives = JSON.parse(JSON.stringify(App.state.baseData.additives));
+                    App.state.recipes = JSON.parse(JSON.stringify(App.state.baseData.recipes));
+                    App.state.events = JSON.parse(JSON.stringify(App.state.baseData.events));
+                    
+                    // Simple simulation: modify data based on fabric name
+                    let multiplier = 1.0;
+                    let eventFilter = (e) => true;
+                    
+                    if (fabricName === 'Fabric B') {
+                        multiplier = 0.8; // Fabric B has less stock
+                        eventFilter = (e, index) => index % 2 === 0; // Fewer events
+                    } else if (fabricName === 'Fabric C') {
+                        multiplier = 1.2; // Fabric C has more stock
+                        eventFilter = (e, index) => index % 3 !== 0; // Different set of events
+                    }
+
+                    App.state.storageUnits.forEach(unit => {
+                        unit.mass = Math.max(10000, Math.min(unit.capacity, unit.mass * multiplier));
+                        unit.volume = unit.mass / 1600;
+                        unit.status = (unit.mass / unit.capacity < 0.20) ? 'low' : 'ok';
+                    });
+                    
+                    App.state.waterTanks.forEach(unit => {
+                        unit.volume = Math.max(1, Math.min(unit.capacity, unit.volume * multiplier));
+                        unit.status = (unit.volume / unit.capacity < 0.20) ? 'low' : 'ok';
+                    });
+
+                    App.state.fuelTanks.forEach(unit => {
+                        unit.volume = Math.max(500, Math.min(unit.capacity, unit.volume * multiplier));
+                        unit.status = (unit.volume / unit.capacity < 0.20) ? 'low' : 'ok';
+                    });
+                    
+                    // Filter events to make fabrics look different
+                    App.state.events = App.state.events.filter(eventFilter);
+                },
+
+                formatTime(date) {
+                    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                },
+                formatDate(date) {
+                    return date.toLocaleDateString('ro-RO', { month: 'short', day: 'numeric' });
+                },
+
+                generateChartData(unit, interval) {
+                    const now = new Date();
+                    let labels = [];
+                    let primaryData = [];
+                    let volumeData = [];
+                    let annotations = [];
+                    
+                    const unitEvents = App.state.events.filter(e => e.unitId == unit.id);
+
+                    const generatePoint = (baseValue, variance) => baseValue + (Math.random() - 0.5) * variance;
+
+                    let baseMass = unit.mass;
+                    let baseVolume = unit.volume;
+                    let massVariance = unit.capacity / 100;
+                    let volumeVariance = (unit.maxVolume || unit.capacity) / 100;
+
+                    if (unit.mass === undefined) { 
+                        baseMass = unit.volume;
+                        massVariance = unit.capacity / 100;
+                    }
+
+                    switch (interval) {
+                        case '3h':
+                            labels = ['-3h', '-2.5h', '-2h', '-1.5h', '-1h', '-30m', 'Now'];
+                            for (let i = 0; i < labels.length; i++) {
+                                primaryData.push(Math.max(0, generatePoint(baseMass, massVariance * 2)));
+                                volumeData.push(Math.max(0, generatePoint(baseVolume, volumeVariance * 2)));
+                            }
+                            const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+                            annotations = unitEvents
+                                .filter(e => new Date(e.timestamp) >= threeHoursAgo)
+                                .map(e => ({
+                                    type: 'line', scaleID: 'x', value: App.simulation.formatTime(new Date(e.timestamp)),
+                                    borderColor: e.type === 'alarm' ? 'red' : 'blue', borderWidth: 2,
+                                    label: { content: e.message.split(': ').pop(), display: true, position: 'start', backgroundColor: e.type === 'alarm' ? 'rgba(239, 68, 68, 0.8)' : 'rgba(59, 130, 246, 0.8)', font: { size: 9 } }
+                                }));
+                            if(annotations.length > 0) labels = ['5:30 PM', '6:00 PM', '6:30 PM', '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM'];
+                            break;
+                            
+                        case '24h':
+                            labels = ['-24h', '-20h', '-16h', '-12h', '-8h', '-4h', 'Now'];
+                            for (let i = 0; i < labels.length; i++) {
+                                primaryData.push(Math.max(0, generatePoint(baseMass, massVariance * 5)));
+                                volumeData.push(Math.max(0, generatePoint(baseVolume, volumeVariance * 5)));
+                            }
+                            const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                            annotations = unitEvents
+                                .filter(e => new Date(e.timestamp) >= dayAgo)
+                                .map(e => ({
+                                    type: 'line', scaleID: 'x', value: App.simulation.formatTime(new Date(e.timestamp)),
+                                    borderColor: e.type === 'alarm' ? 'red' : 'blue', borderWidth: 2,
+                                    label: { content: e.message.split(': ').pop(), display: true, position: 'start', backgroundColor: e.type === 'alarm' ? 'rgba(239, 68, 68, 0.8)' : 'rgba(59, 130, 246, 0.8)', font: { size: 9 } }
+                                }));
+                            break;
+                            
+                        case '7d':
+                            labels = ['-7d', '-6d', '-5d', '-4d', '-3d', '-2d', '-1d', 'Today'];
+                            for (let i = 0; i < labels.length; i++) {
+                                primaryData.push(Math.max(0, generatePoint(baseMass, massVariance * 10)));
+                                volumeData.push(Math.max(0, generatePoint(baseVolume, volumeVariance * 10)));
+                            }
+                            break;
+                            
+                        case '30d':
+                            labels = ['-30d', '-25d', '-20d', '-15d', '-10d', '-5d', 'Today'];
+                            for (let i = 0; i < labels.length; i++) {
+                                primaryData.push(Math.max(0, generatePoint(baseMass, massVariance * 20)));
+                                volumeData.push(Math.max(0, generatePoint(baseVolume, volumeVariance * 20)));
+                            }
+                            break;
+                    }
+                    
+                    return { labels, primaryData, volumeData, annotations };
+                },
+
+                simulateDataUpdate() {
+                    if (App.state.selectedFabric === null) return; // Don't simulate if no fabric is selected
+
+                    $('#current-time').textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                    App.state.storageUnits.forEach(unit => {
+                        if (unit.status !== 'error') {
+                            const change = (Math.random() - 0.45) * 500;
+                            unit.mass = Math.max(0, Math.min(unit.capacity, unit.mass + change));
+                            unit.volume = Math.max(0, Math.min(unit.maxVolume, unit.mass / 1600));
+                            unit.status = (unit.mass / unit.capacity < 0.20) ? 'low' : 'ok';
+                        }
+                    });
+                    
+                    App.state.waterTanks.forEach(unit => {
+                        const change = (Math.random() - 0.45) * 0.5;
+                        unit.volume = Math.max(0, Math.min(unit.capacity, unit.volume + change));
+                        unit.status = (unit.volume / unit.capacity < 0.20) ? 'low' : 'ok';
+                    });
+                    App.state.fuelTanks.forEach(unit => {
+                        const change = (Math.random() - 0.45) * 20;
+                        unit.volume = Math.max(0, Math.min(unit.capacity, unit.volume + change));
+                        unit.status = (unit.volume / unit.capacity < 0.20) ? 'low' : 'ok';
+                    });
+                    
+                    if (!$('#page-dashboard').classList.contains('hidden')) {
+                        App.render.dashboard();
+                    }
+                }
+            }
+        };
+
+        // --- LET'S GO ---
+        // MODIFIED: Only initialize the fabric selector on load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Render icons on the selector page immediately
+            lucide.createIcons();
+            
+            // The App.init() function, which sets up the main dashboard,
+            // will now be called by App.handlers.selectFabric()
+        });
+        
+    </script>
+</body>
+</html>
