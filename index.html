@@ -560,7 +560,12 @@
         </div>
 
         <!-- Unit Details Modal -->
-        <div id="unit-details-modal" class="modal hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-11/12 max-w-md md:max-w-3xl">
+        <!-- 
+            CHANGE 1: Added max-h-[90vh] and overflow-y-auto
+            This makes the modal scrollable if its content is taller than the viewport,
+            fixing the mobile overflow issue.
+        -->
+        <div id="unit-details-modal" class="modal hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-11/12 max-w-md md:max-w-3xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <h3 id="unit-modal-title" class="text-2xl font-semibold text-gray-800">Unit Details</h3>
                 <button id="unit-details-close" class="text-gray-400 hover:text-gray-600">
@@ -597,7 +602,12 @@
                 <div id="unit-modal-toggles" class="flex flex-wrap gap-2 mb-2">
                     <!-- Toggles injected by JS -->
                 </div>
-                <div class="h-80 w-full">
+                <!-- 
+                    CHANGE 2: Changed h-80 to h-64 sm:h-80
+                    This makes the chart height smaller on mobile (h-64) and
+                    taller on desktop (sm:h-80), further improving mobile layout.
+                -->
+                <div class="h-64 sm:h-80 w-full">
                     <canvas id="unit-details-chart"></canvas>
                 </div>
             </div>
@@ -633,7 +643,8 @@
             <p id="confirm-remove-message" class="text-gray-600 mb-6">Are you sure?</p>
             <div class="flex justify-end space-x-3">
                 <button type="button" class="btn-secondary py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-white text-gray-700 border border-gray-300 hover:bg-gray-50" id="confirm-remove-cancel">Cancel</button>
-                <button type="button" class="btn py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-red-600 hover:bg-red-700 text-white" id="confirm-remove-btn">Confirm</button>
+
+<button type="button" class="btn py-2.5 px-5 rounded-lg font-semibold text-sm transition shadow bg-red-600 hover:bg-red-700 text-white" id="confirm-remove-btn">Confirm</button>
             </div>
         </div>
 
